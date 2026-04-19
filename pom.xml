@@ -23,6 +23,7 @@
 
     <build>
         <plugins>
+            <!-- Specify program entry point for JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -35,6 +36,8 @@
                     </archive>
                 </configuration>
             </plugin>
+
+            <!-- Copy all dependencies into JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
