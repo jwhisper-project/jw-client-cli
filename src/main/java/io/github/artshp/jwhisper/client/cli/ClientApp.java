@@ -1,5 +1,6 @@
 package io.github.artshp.jwhisper.client.cli;
 
+import io.github.artshp.jwhisper.client.cli.exception.WrongPasswordException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Console;
@@ -49,7 +50,12 @@ class ClientApp {
                 throw new IllegalStateException("Failed to get password.");
             }
 
-            keyPair = IdentityManager.loadKeys(password.get());
+            try {
+                keyPair = IdentityManager.loadKeys(password.get());
+            } catch (WrongPasswordException e) {
+                log.error("Wrong password provided.");
+                throw new RuntimeException(e);
+            }
         } else {
             log.info("Key Store is not available. Creating it...");
 
