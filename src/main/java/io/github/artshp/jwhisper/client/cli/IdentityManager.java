@@ -1,5 +1,6 @@
 package io.github.artshp.jwhisper.client.cli;
 
+import io.github.artshp.jwhisper.client.cli.exception.InvalidPasswordException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.X509CertificateHolder;
@@ -17,12 +18,12 @@ import java.io.OutputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
+import java.util.Optional;
 
 @Slf4j
 class IdentityManager {
@@ -66,11 +67,22 @@ class IdentityManager {
 
         log.info("Trying to load existing key store from file \"{}\"", KEYSTORE_FILE_PATH);
 
-        try (InputStream fis = Files.newInputStream(KEYSTORE_FILE_PATH, StandardOpenOption.READ)) {
+        try (InputStream fis = Files.newInputStream(KEYSTORE_FILE_PATH)) {
             keyStore.load(fis, password);
-        } catch (IOException | NoSuchAlgorithmException | CertificateException e) {
+        } catch (NoSuchAlgorithmException | CertificateException e) {
             log.error("Failed to load key store from file \"{}\"", KEYSTORE_FILE_PATH, e);
             throw new RuntimeException("Failed to load key store from file \"" + KEYSTORE_FILE_PATH + "\"", e);
+        } catch (IOException e) {
+            Class<?> causeClass = Optional.ofNullable(e.getCause())
+                    .map(Throwable::getClass)
+                    .orElse(null);
+
+            // Was it caused by invalid password?
+            if (UnrecoverableKeyException.class.equals(causeClass)) {
+                throw new InvalidPasswordException("Invalid password provided for key store", e);
+            } else {
+                throw new RuntimeException("Failed to load key store from file \"" + KEYSTORE_FILE_PATH + "\"", e);
+            }
         }
 
         try {
