@@ -1,14 +1,23 @@
 package io.github.artshp.jwhisper.client.cli;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
- * Client app main class.
+ * Client app class.
  */
+@Slf4j
 class ClientApp {
 
     /**
-     * Client app entry point.
+     * Constructs a new client application.
      */
-    static void main() {
-        System.out.println("Client started.");
+    public ClientApp() {
+    }
+
+    /**
+     * Start client application.
+     */
+    public void start() {
+        log.info("Starting Client App");
     }
 }

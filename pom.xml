@@ -20,6 +20,8 @@
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+        <jwhisper.client.mainClass>io.github.artshp.jwhisper.client.cli.Main</jwhisper.client.mainClass>
+
         <lombok.version>1.18.44</lombok.version>
     </properties>
 
@@ -33,7 +35,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>io.github.artshp.jwhisper.client.cli.ClientApp</mainClass>
+                            <mainClass>${jwhisper.client.mainClass}</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -53,7 +55,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>io.github.artshp.jwhisper.client.cli.ClientApp</mainClass>
+                                    <mainClass>${jwhisper.client.mainClass}</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
