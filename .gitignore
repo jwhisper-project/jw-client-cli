@@ -20,6 +20,9 @@ pom.xml.tag
 pom.xml.next
 pom.xml.versionsBackup
 
+# --- Maven Shade Plugin ---
+dependency-reduced-pom.xml
+
 # --- IntelliJ IDEA ---
 .idea/
 *.iml
