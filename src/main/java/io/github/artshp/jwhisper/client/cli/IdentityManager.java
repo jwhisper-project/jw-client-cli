@@ -1,6 +1,6 @@
 package io.github.artshp.jwhisper.client.cli;
 
-import io.github.artshp.jwhisper.client.cli.exception.InvalidPasswordException;
+import io.github.artshp.jwhisper.client.cli.exception.WrongPasswordException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.X509CertificateHolder;
@@ -77,9 +77,9 @@ class IdentityManager {
                     .map(Throwable::getClass)
                     .orElse(null);
 
-            // Was it caused by invalid password?
+            // Was it caused by wrong password?
             if (UnrecoverableKeyException.class.equals(causeClass)) {
-                throw new InvalidPasswordException("Invalid password provided for key store", e);
+                throw new WrongPasswordException("Wrong password provided for key store", e);
             } else {
                 throw new RuntimeException("Failed to load key store from file \"" + KEYSTORE_FILE_PATH + "\"", e);
             }
