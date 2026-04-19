@@ -62,7 +62,7 @@ class IdentityManager {
         return Files.exists(KEYSTORE_FILE_PATH);
     }
 
-    public static KeyPair loadKeys(char[] password) {
+    public static KeyPair loadKeys(char[] password) throws WrongPasswordException {
         KeyStore keyStore = getKeyStore();
 
         log.info("Trying to load existing key store from file \"{}\"", KEYSTORE_FILE_PATH);
