@@ -5,11 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.Console;
 import java.security.KeyPair;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
 import java.util.Arrays;
-import java.util.HexFormat;
 import java.util.Optional;
 
 /**
@@ -17,8 +13,6 @@ import java.util.Optional;
  */
 @Slf4j
 class ClientApp {
-
-    private static final String HASH_ALGORITHM = "SHA-256";
 
     private final Console console;
     private final ConfigManager configManager = new ConfigManager();
@@ -75,7 +69,7 @@ class ClientApp {
             keyPair = IdentityManager.createKeys(password.get(), username.get());
         }
 
-        log.info("Identity loaded. Fingerprint: {}", calculateFingerprint(keyPair.getPublic()));
+        log.info("Identity loaded. Fingerprint: {}", CertUtils.getFingerprint(keyPair.getPublic()));
 
         ClientConfig config;
         if (!configManager.isConfigPresent()) {
@@ -184,23 +178,5 @@ class ClientApp {
         }
 
         return Optional.of(username);
-    }
-
-    private static String calculateFingerprint(PublicKey key) {
-        MessageDigest md;
-        try {
-            md = MessageDigest.getInstance(HASH_ALGORITHM);
-        } catch (NoSuchAlgorithmException e) {
-            log.error("{} is not available.", HASH_ALGORITHM);
-            throw new IllegalStateException(HASH_ALGORITHM + " is not available.", e);
-        }
-
-        byte[] hash = md.digest(key.getEncoded());
-        String hex = HexFormat.of()
-                .withPrefix(":")
-                .withUpperCase()
-                .formatHex(hash);
-
-        return HASH_ALGORITHM + hex;
     }
 }
