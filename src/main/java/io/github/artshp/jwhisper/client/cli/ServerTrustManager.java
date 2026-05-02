@@ -66,7 +66,7 @@ public class ServerTrustManager {
             trustStore.setCertificateEntry(UUID.randomUUID().toString(), certificate);
             saveTrustStore();
 
-            log.info("Trusted certificate {} added", certificate.getSubjectX500Principal());
+            log.info("Trusted certificate with fingerprint {} added", CertUtils.getFingerprint(certificate));
         } catch (KeyStoreException e) {
             log.error("Failed to set trusted certificate \"{}\"", certificate, e);
         }
