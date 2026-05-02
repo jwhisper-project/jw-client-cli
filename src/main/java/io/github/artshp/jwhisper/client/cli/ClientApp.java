@@ -47,14 +47,14 @@ class ClientApp {
             Optional<char[]> password = readPassword(false);
             if (password.isEmpty()) {
                 log.error("Failed to get password.");
-                throw new IllegalStateException("Failed to get password.");
+                return;
             }
 
             try {
                 keyPair = IdentityManager.loadKeys(password.get());
             } catch (WrongPasswordException e) {
                 log.error("Wrong password provided.");
-                throw new RuntimeException(e);
+                return;
             }
         } else {
             log.info("Key Store is not available. Creating it...");
