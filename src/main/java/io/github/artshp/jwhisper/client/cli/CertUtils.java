@@ -20,6 +20,7 @@ public class CertUtils {
 
     private static final String CERTIFICATE_TYPE = "X.509";
     private static final String HASH_ALGORITHM = "SHA-256";
+    private static final String SSL_PROTOCOL = "TLSv1.3";
 
     private static final CertificateFactory CERTIFICATE_FACTORY;
 
@@ -32,7 +33,9 @@ public class CertUtils {
     }
 
     public static Optional<X509Certificate> parsePemCertificate(String pem) {
-        String cleanedPem = pem.trim();
+        String cleanedPem = pem.strip()
+                .replace("-----BEGIN CERTIFICATE-----", "-----BEGIN CERTIFICATE-----\n")
+                .replace("-----END CERTIFICATE-----", "-----END CERTIFICATE-----\n");
 
         try (InputStream is = new ByteArrayInputStream(cleanedPem.getBytes())) {
             return Optional.of((X509Certificate) CERTIFICATE_FACTORY.generateCertificate(is));
@@ -42,16 +45,16 @@ public class CertUtils {
         }
     }
 
-    public static Optional<String> getFingerprint(X509Certificate certificate) {
+    public static String getFingerprint(X509Certificate certificate) {
         byte[] data;
         try {
             data = certificate.getEncoded();
         } catch (CertificateEncodingException e) {
             log.error("Failed to encode certificate", e);
-            return Optional.empty();
+            return null;
         }
 
-        return Optional.of(getFingerprint(data));
+        return getFingerprint(data);
     }
 
     public static String getFingerprint(PublicKey key) {
