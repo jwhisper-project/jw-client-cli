@@ -4,6 +4,7 @@ import io.github.artshp.jwhisper.client.cli.exception.WrongPasswordException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Console;
+import java.io.IOException;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -100,6 +101,12 @@ class ClientApp {
 
             X509Certificate certificate = certificateOptional.get();
             serverTrustManager.addTrustedCertificate(certificate);
+        }
+
+        try (NetworkClient client = new NetworkClient(serverTrustManager, config.hostname(), config.port())) {
+            client.connect();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
