@@ -30,6 +30,7 @@
         <logback.verion>1.5.32</logback.verion>
         <lombok.version>1.18.44</lombok.version>
         <bouncycastle.version>1.84</bouncycastle.version>
+        <jackson.version>3.1.2</jackson.version>
     </properties>
 
     <build>
@@ -150,6 +151,13 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
             <version>${bouncycastle.version}</version>
+        </dependency>
+
+        <!-- Jackson - JSON -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
     </dependencies>
 
