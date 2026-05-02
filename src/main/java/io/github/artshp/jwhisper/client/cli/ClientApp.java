@@ -21,6 +21,7 @@ class ClientApp {
     private static final String HASH_ALGORITHM = "SHA-256";
 
     private final Console console;
+    private final ConfigManager configManager = new ConfigManager();
 
     /**
      * Constructs a new client application.
@@ -75,6 +76,32 @@ class ClientApp {
         }
 
         log.info("Identity loaded. Fingerprint: {}", calculateFingerprint(keyPair.getPublic()));
+
+        ClientConfig config;
+        if (!configManager.isConfigPresent()) {
+            log.debug("No config present. Creating it...");
+
+            String hostname = readHostname();
+            int port = readPort();
+
+            config = new ClientConfig(hostname, port);
+            configManager.saveConfig(config);
+        } else {
+            log.debug("Config present. Loading it...");
+            config = configManager.loadConfig();
+        }
+
+        log.info("Used config: {}", config.toPrettyString());
+    }
+
+    private String readHostname() {
+        String hostname = console.readLine("Enter hostname: ");
+        return hostname.isEmpty() ? "localhost" : hostname;
+    }
+
+    private int readPort() {
+        String portString = console.readLine("Enter port: ");
+        return portString.isEmpty() ? 8080 : Integer.parseInt(portString);
     }
 
     private static boolean isPasswordValid(char[] password) {
