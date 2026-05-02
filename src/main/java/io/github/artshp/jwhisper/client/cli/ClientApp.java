@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.Console;
 import java.security.KeyPair;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -86,6 +87,31 @@ class ClientApp {
         }
 
         log.info("Used config: {}", config.toPrettyString());
+
+        // TODO: replace with real password
+        ServerTrustManager serverTrustManager = new ServerTrustManager("changeit".toCharArray());
+
+        if (askYesNo("Do you want to add server's certificate?")) {
+            Optional<X509Certificate> certificateOptional = readCertificate();
+            if (certificateOptional.isEmpty()) {
+                log.error("Failed to load certificate.");
+                return;
+            }
+
+            X509Certificate certificate = certificateOptional.get();
+            serverTrustManager.addTrustedCertificate(certificate);
+        }
+    }
+
+    private boolean askYesNo(String question) {
+        String answer = console.readLine(question + " (Y/n): ");
+
+        return answer.equalsIgnoreCase("y") || answer.equalsIgnoreCase("yes");
+    }
+
+    private Optional<X509Certificate> readCertificate() {
+        String cert = console.readLine("Enter certificate (single line, with PEM boundaries): ");
+        return CertUtils.parsePemCertificate(cert);
     }
 
     private String readHostname() {
