@@ -1,5 +1,6 @@
 package io.github.artshp.jwhisper.client.cli;
 
+import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.protocol.MessageTransport;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,7 +32,7 @@ public class NetworkClient implements AutoCloseable {
 
             socket = (SSLSocket) factory.createSocket(host, port);
 
-            socket.setEnabledProtocols(new String[]{"TLSv1.3"});
+            socket.setEnabledProtocols(new String[]{SecurityUtils.SSL_PROTOCOL});
             socket.startHandshake();
 
             log.debug("TLS connection established");
