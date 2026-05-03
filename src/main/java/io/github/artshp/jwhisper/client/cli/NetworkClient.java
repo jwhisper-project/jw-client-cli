@@ -1,5 +1,6 @@
 package io.github.artshp.jwhisper.client.cli;
 
+import io.github.artshp.jwhisper.common.protocol.MessageTransport;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.SSLSocket;
@@ -9,6 +10,7 @@ import java.io.IOException;
 @Slf4j
 public class NetworkClient implements AutoCloseable {
 
+    private final MessageTransport transport = new MessageTransport();
     private final ServerTrustManager trustManager;
     private final String host;
     private final int port;
