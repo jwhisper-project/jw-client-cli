@@ -1,6 +1,6 @@
 package io.github.artshp.jwhisper.client.cli;
 
-import io.github.artshp.jwhisper.client.cli.exception.WrongPasswordException;
+import io.github.artshp.jwhisper.common.exception.WrongPasswordException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Console;
