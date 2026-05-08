@@ -32,6 +32,8 @@ class ClientApp {
         log.info("Starting Client App");
         System.out.println("----- JWhisper Client -----");
 
+        String username = UserInputUtils.readUsername();
+
         KeyPair keyPair;
         if (IdentityManager.isKeyStoreAvailable()) {
             log.info("Key Store is available. Trying to load it...");
@@ -47,7 +49,6 @@ class ClientApp {
             log.info("Key Store is not available. Creating it...");
 
             char[] password = UserInputUtils.readNewPassword();
-            String username = UserInputUtils.readUsername();
             keyPair = IdentityManager.createKeys(password, username);
         }
 
@@ -85,6 +86,15 @@ class ClientApp {
 
         try (NetworkClient client = new NetworkClient(serverTrustManager, config.hostname(), config.port())) {
             client.connect();
+
+            if (UserInputUtils.askYesNo("Do you want to register your user?")) {
+                boolean success = client.register(username, keyPair);
+                if (success) {
+                    log.info("Successfully registered your user.");
+                } else {
+                    log.error("Failed to register your user.");
+                }
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
