@@ -2,6 +2,7 @@ package io.github.artshp.jwhisper.client.cli;
 
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.protocol.MessageTransport;
+import io.github.artshp.jwhisper.common.protocol.WhisperMessage;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.SSLSocket;
@@ -40,6 +41,14 @@ public class NetworkClient implements AutoCloseable {
             log.error("Error connecting to relay", e);
             throw new RuntimeException(e);
         }
+    }
+
+    public void send(WhisperMessage message) throws IOException {
+        transport.sendMessage(socket.getOutputStream(), message);
+    }
+
+    public WhisperMessage receive() throws IOException {
+        return transport.receiveMessage(socket.getInputStream(), WhisperMessage.class);
     }
 
     @Override
