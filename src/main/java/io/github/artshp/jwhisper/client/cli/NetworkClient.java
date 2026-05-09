@@ -2,10 +2,7 @@ package io.github.artshp.jwhisper.client.cli;
 
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
-import io.github.artshp.jwhisper.common.protocol.MessageTransport;
-import io.github.artshp.jwhisper.common.protocol.RegisterRequest;
-import io.github.artshp.jwhisper.common.protocol.StatusResponse;
-import io.github.artshp.jwhisper.common.protocol.WhisperMessage;
+import io.github.artshp.jwhisper.common.protocol.*;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.SSLSocket;
@@ -67,6 +64,26 @@ public class NetworkClient implements AutoCloseable {
             }
         } else {
             log.error("Unexpected response {}. Failed to register user {}", response, username);
+        }
+
+        return false;
+    }
+
+    public boolean unregister(String username) throws IOException {
+        UnregisterRequest request = new UnregisterRequest();
+
+        send(request);
+        WhisperMessage response = receive();
+
+        if (response instanceof StatusResponse statusResponse) {
+            if (statusResponse.success()) {
+                log.info("Successfully unregistered user {}", username);
+                return true;
+            } else {
+                log.error("Failed to unregister user {}", username);
+            }
+        } else {
+            log.error("Unexpected response {}. Failed to unregister user {}", response, username);
         }
 
         return false;

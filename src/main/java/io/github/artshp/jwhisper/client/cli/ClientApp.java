@@ -2,7 +2,9 @@ package io.github.artshp.jwhisper.client.cli;
 
 import io.github.artshp.jwhisper.common.crypto.CertUtils;
 import io.github.artshp.jwhisper.common.exception.InputRetryException;
+import io.github.artshp.jwhisper.common.exception.NetworkServiceException;
 import io.github.artshp.jwhisper.common.exception.WrongPasswordException;
+import io.github.artshp.jwhisper.common.io.ConsoleUtils;
 import io.github.artshp.jwhisper.common.io.UserInputUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +30,7 @@ class ClientApp {
     /**
      * Start client application.
      */
-    public void start() throws InputRetryException {
+    public void start() throws InputRetryException, NetworkServiceException {
         log.info("Starting Client App");
         System.out.println("----- JWhisper Client -----");
 
@@ -86,14 +88,17 @@ class ClientApp {
 
         try (NetworkClient client = new NetworkClient(serverTrustManager, config.hostname(), config.port())) {
             client.connect();
+            if (!client.register(username, keyPair)) {
+                throw new NetworkServiceException("Failed to register your user.");
+            }
 
-            if (UserInputUtils.askYesNo("Do you want to register your user?")) {
-                boolean success = client.register(username, keyPair);
-                if (success) {
-                    log.info("Successfully registered your user.");
-                } else {
-                    log.error("Failed to register your user.");
-                }
+            String message;
+            do {
+                message = ConsoleUtils.readString("Mock chat: ", _ -> true, null, 1);
+            } while (!"quit".equals(message));
+
+            if (!client.unregister(username)) {
+                throw new NetworkServiceException("Failed to unregister your user.");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
