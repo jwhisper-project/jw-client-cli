@@ -11,10 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Map;
+import java.util.concurrent.*;
 
 @Slf4j
 public class CommunicationManager {
@@ -22,13 +20,12 @@ public class CommunicationManager {
     private final String myUsername;
     private final PrivateKey myPrivateKey;
     private final NetworkClient client;
+    private final UserRegistry userRegistry = new UserRegistry();
     private final CompletableFuture<StatusResponse> unregisterFuture = new CompletableFuture<>();
     private final Thread listenThread = Thread.ofVirtual()
             .name("listener")
             .unstarted(this::listenLoop);
-
-    private PublicKey publicKey = null;
-    private CompletableFuture<PublicKey> publicKeyFuture = new CompletableFuture<>();
+    private final Map<String, CompletableFuture<Void>> publicKeyFutures = new ConcurrentHashMap<>();
 
     public CommunicationManager(String myUsername, PrivateKey myPrivateKey, NetworkClient client) {
         this.myUsername = myUsername;
@@ -47,7 +44,7 @@ public class CommunicationManager {
                 WhisperMessage incoming = client.receive();
 
                 switch (incoming) {
-                    case EncryptedMessage message -> handleIncomingMessage(message, publicKey);
+                    case EncryptedMessage message -> handleIncomingMessage(message);
                     case UserPublicKeyResponse publicKeyResponse -> handleKeyResponse(publicKeyResponse);
                     case StatusResponse statusResponse -> unregisterFuture.complete(statusResponse);
                     default -> log.warn("Unknown message received: {}", incoming);
@@ -103,22 +100,34 @@ public class CommunicationManager {
         if (response.found()) {
             log.info("Successfully obtained public key of user {}", targetUsername);
             try {
-                publicKeyFuture.complete(SecurityUtils.newPublicKey(response.targetPublicKey()));
+                PublicKey publicKey = SecurityUtils.newPublicKey(response.targetPublicKey());
+                userRegistry.addUserPublicKeys(targetUsername, publicKey);
+
             } catch (InvalidKeySpecException e) {
-                publicKeyFuture.complete(null);
                 log.error("Failed to obtain public key of user {}", targetUsername, e);
+                userRegistry.addUserPublicKeys(targetUsername, null);
             }
         } else {
-            publicKeyFuture.complete(null);
             log.error("Failed to obtain public key of user {}", targetUsername);
+            userRegistry.addUserPublicKeys(targetUsername, null);
+        }
+
+        CompletableFuture<Void> future = publicKeyFutures.get(targetUsername);
+        if (future != null) {
+            future.complete(null);
         }
     }
 
     private void sendDirectMessage(String targetUsername, String plainText) throws Exception {
-        publicKeyFuture = new CompletableFuture<>();
-        client.send(new UserPublicKeyRequest(targetUsername));
-        PublicKey recipientPublicKey = publicKeyFuture.get();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        publicKeyFutures.put(targetUsername, future);
 
+        client.send(new UserPublicKeyRequest(targetUsername));
+
+        future.join();
+        publicKeyFutures.remove(targetUsername);
+
+        PublicKey recipientPublicKey = userRegistry.getSigningKey(targetUsername);
         if (recipientPublicKey == null) {
             log.error("Failed to send message to user {}", targetUsername);
             return;
@@ -139,12 +148,19 @@ public class CommunicationManager {
         log.info("Message sent to {}", targetUsername);
     }
 
-    private void handleIncomingMessage(EncryptedMessage message, PublicKey senderPublicKey) {
-        // TODO: verify
-        /*if (!SigningUtils.verify(senderPublicKey, message.message(), message.signature())) {
-            log.warn("Forged message detected from {}", message.sender());
+    private void handleIncomingMessage(EncryptedMessage message) {
+        String sender = message.sender();
+
+        PublicKey senderPublicKey = userRegistry.getSigningKey(sender);
+        if (senderPublicKey == null) {
+            log.error("Failed to read message from user {}", sender);
             return;
-        }*/
+        }
+
+        if (!SigningUtils.verify(senderPublicKey, message.message(), message.signature())) {
+            log.warn("Forged message detected from {}", sender);
+            return;
+        }
 
         byte[] encryptedData = message.message();
 
