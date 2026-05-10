@@ -4,7 +4,6 @@ import io.github.artshp.jwhisper.common.crypto.CertUtils;
 import io.github.artshp.jwhisper.common.exception.InputRetryException;
 import io.github.artshp.jwhisper.common.exception.NetworkServiceException;
 import io.github.artshp.jwhisper.common.exception.WrongPasswordException;
-import io.github.artshp.jwhisper.common.io.ConsoleUtils;
 import io.github.artshp.jwhisper.common.io.UserInputUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -92,14 +91,17 @@ class ClientApp {
                 throw new NetworkServiceException("Failed to register your user.");
             }
 
-            String message;
-            do {
-                message = ConsoleUtils.readString("Mock chat: ", _ -> true, null, 1);
-            } while (!"quit".equals(message));
+            CommunicationManager communicationManager = new CommunicationManager(
+                    username,
+                    keyPair.getPrivate(),
+                    client
+            );
+            communicationManager.start();
 
             if (!client.unregister(username)) {
                 throw new NetworkServiceException("Failed to unregister your user.");
             }
+            log.info("Goodbye!");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
