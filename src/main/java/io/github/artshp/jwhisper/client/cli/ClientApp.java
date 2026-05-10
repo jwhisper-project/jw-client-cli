@@ -98,9 +98,6 @@ class ClientApp {
             );
             communicationManager.start();
 
-            if (!client.unregister(username)) {
-                throw new NetworkServiceException("Failed to unregister your user.");
-            }
             log.info("Goodbye!");
         } catch (IOException e) {
             throw new RuntimeException(e);

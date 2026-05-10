@@ -3,17 +3,18 @@ package io.github.artshp.jwhisper.client.cli;
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
 import io.github.artshp.jwhisper.common.io.ConsoleUtils;
-import io.github.artshp.jwhisper.common.protocol.EncryptedMessage;
-import io.github.artshp.jwhisper.common.protocol.UserPublicKeyRequest;
-import io.github.artshp.jwhisper.common.protocol.UserPublicKeyResponse;
-import io.github.artshp.jwhisper.common.protocol.WhisperMessage;
+import io.github.artshp.jwhisper.common.protocol.*;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 public class CommunicationManager {
@@ -21,6 +22,7 @@ public class CommunicationManager {
     private final String myUsername;
     private final PrivateKey myPrivateKey;
     private final NetworkClient client;
+    private final CompletableFuture<StatusResponse> unregisterFuture = new CompletableFuture<>();
     private final Thread listenThread = Thread.ofVirtual()
             .name("listener")
             .unstarted(this::listenLoop);
@@ -47,6 +49,7 @@ public class CommunicationManager {
                 switch (incoming) {
                     case EncryptedMessage message -> handleIncomingMessage(message, publicKey);
                     case UserPublicKeyResponse publicKeyResponse -> handleKeyResponse(publicKeyResponse);
+                    case StatusResponse statusResponse -> unregisterFuture.complete(statusResponse);
                     default -> log.warn("Unknown message received: {}", incoming);
                 }
             }
@@ -56,21 +59,41 @@ public class CommunicationManager {
     }
 
     private void uiLoop() {
+        log.info("Starting chat.");
         while (true) {
             try {
-                String cmd = ConsoleUtils.readString("Enter command: ", _ -> true, null, 1);
+                String cmd = ConsoleUtils.readString("", _ -> true, null, 1);
                 if (cmd.startsWith("/msg")) {
                     // Example: /msg bob Hello!
                     String[] parts = cmd.split(" ", 3);
                     sendDirectMessage(parts[1], parts[2]);
                 } else if (cmd.startsWith("/exit")) {
                     log.info("Exiting.");
-                    listenThread.interrupt();
+                    unregister();
                     return;
                 }
             } catch (Exception e) {
                 log.error("Command failed.", e);
             }
+        }
+    }
+
+    private void unregister() throws IOException {
+        UnregisterRequest request = new UnregisterRequest();
+        client.send(request);
+
+        StatusResponse response;
+        try {
+            response = unregisterFuture.get(5, TimeUnit.SECONDS);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            log.error("Unregistering failed.", e);
+            return;
+        }
+
+        if (response.success()) {
+            log.info("Successfully unregistered user {}", myUsername);
+        } else {
+            log.error("Failed to unregister user {}", myUsername);
         }
     }
 
