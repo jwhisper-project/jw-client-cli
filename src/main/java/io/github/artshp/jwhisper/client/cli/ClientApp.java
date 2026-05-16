@@ -1,6 +1,7 @@
 package io.github.artshp.jwhisper.client.cli;
 
 import io.github.artshp.jwhisper.common.crypto.CertUtils;
+import io.github.artshp.jwhisper.common.crypto.PasswordUtils;
 import io.github.artshp.jwhisper.common.exception.InputRetryException;
 import io.github.artshp.jwhisper.common.exception.NetworkServiceException;
 import io.github.artshp.jwhisper.common.exception.WrongPasswordException;
@@ -35,10 +36,11 @@ class ClientApp {
         String username = UserInputUtils.readUsername();
 
         UserKeys keys;
+        char[] password;
         if (IdentityManager.isKeyStoreAvailable()) {
             log.info("Key Store is available. Trying to load it...");
 
-            char[] password = UserInputUtils.readPassword();
+            password = UserInputUtils.readPassword();
             try {
                 keys = IdentityManager.loadKeys(password);
             } catch (WrongPasswordException e) {
@@ -48,7 +50,7 @@ class ClientApp {
         } else {
             log.info("Key Store is not available. Creating it...");
 
-            char[] password = UserInputUtils.readNewPassword();
+            password = UserInputUtils.readNewPassword();
             keys = IdentityManager.createKeys(password, username);
         }
 
@@ -75,9 +77,7 @@ class ClientApp {
 
         log.info("Used config: {}", config.toPrettyString());
 
-        // TODO: replace with real password
-        ServerTrustManager serverTrustManager = new ServerTrustManager("changeit".toCharArray());
-
+        ServerTrustManager serverTrustManager = new ServerTrustManager(password);
         if (UserInputUtils.askYesNo("Do you want to add server's certificate?")) {
             Optional<X509Certificate> certificateOptional = UserInputUtils.readCertificate();
             if (certificateOptional.isEmpty()) {
@@ -88,6 +88,7 @@ class ClientApp {
             X509Certificate certificate = certificateOptional.get();
             serverTrustManager.addTrustedCertificate(certificate);
         }
+        password = PasswordUtils.cleanPassword(password);
 
         try (NetworkClient client = new NetworkClient(serverTrustManager, config.hostname(), config.port())) {
             client.connect();
