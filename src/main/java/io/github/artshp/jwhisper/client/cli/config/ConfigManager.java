@@ -1,4 +1,4 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.config;
 
 import io.github.artshp.jwhisper.common.exception.ConfigFileException;
 import lombok.extern.slf4j.Slf4j;

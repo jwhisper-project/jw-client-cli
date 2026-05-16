@@ -1,4 +1,4 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.security;
 
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 
@@ -7,12 +7,7 @@ import javax.crypto.KeyAgreement;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
-import java.security.GeneralSecurityException;
-import java.security.KeyPair;
-import java.security.MessageDigest;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SecureRandom;
+import java.security.*;
 
 public class MessageCrypto {
 

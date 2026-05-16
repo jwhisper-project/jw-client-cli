@@ -1,4 +1,4 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.security;
 
 import io.github.artshp.jwhisper.common.crypto.CertUtils;
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;

@@ -1,5 +1,6 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.security;
 
+import io.github.artshp.jwhisper.client.cli.users.UserKeys;
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.exception.WrongPasswordException;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,7 @@ import java.security.cert.X509Certificate;
 import java.util.Date;
 
 @Slf4j
-class IdentityManager {
+public class IdentityManager {
 
     private static final String SIGNING_KEY_ALIAS = "jwhisper-sign";
     private static final String ENCRYPTION_KEY_ALIAS = "jwhisper-encrypt";

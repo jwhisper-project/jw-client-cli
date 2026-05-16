@@ -1,4 +1,4 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.config;
 
 import tools.jackson.databind.ObjectMapper;
 

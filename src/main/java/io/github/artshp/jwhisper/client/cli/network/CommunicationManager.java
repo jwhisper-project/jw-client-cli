@@ -1,5 +1,8 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.network;
 
+import io.github.artshp.jwhisper.client.cli.security.MessageCrypto;
+import io.github.artshp.jwhisper.client.cli.users.UserKeys;
+import io.github.artshp.jwhisper.client.cli.users.UserRegistry;
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
 import io.github.artshp.jwhisper.common.io.ConsoleUtils;
@@ -41,7 +44,7 @@ public class CommunicationManager {
 
     private void listenLoop() {
         try {
-            while (true) {
+            while (!shuttingDown) {
                 WhisperMessage incoming = client.receive();
 
                 switch (incoming) {
