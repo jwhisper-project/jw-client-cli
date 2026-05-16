@@ -4,12 +4,10 @@ import io.github.artshp.jwhisper.common.crypto.CertUtils;
 import io.github.artshp.jwhisper.common.exception.InputRetryException;
 import io.github.artshp.jwhisper.common.exception.NetworkServiceException;
 import io.github.artshp.jwhisper.common.exception.WrongPasswordException;
-import io.github.artshp.jwhisper.common.io.ConsoleUtils;
 import io.github.artshp.jwhisper.common.io.UserInputUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 
@@ -36,13 +34,13 @@ class ClientApp {
 
         String username = UserInputUtils.readUsername();
 
-        KeyPair keyPair;
+        UserKeys keys;
         if (IdentityManager.isKeyStoreAvailable()) {
             log.info("Key Store is available. Trying to load it...");
 
             char[] password = UserInputUtils.readPassword();
             try {
-                keyPair = IdentityManager.loadKeys(password);
+                keys = IdentityManager.loadKeys(password);
             } catch (WrongPasswordException e) {
                 log.error("Wrong password provided.");
                 return;
@@ -51,10 +49,15 @@ class ClientApp {
             log.info("Key Store is not available. Creating it...");
 
             char[] password = UserInputUtils.readNewPassword();
-            keyPair = IdentityManager.createKeys(password, username);
+            keys = IdentityManager.createKeys(password, username);
         }
 
-        log.info("Identity loaded. Fingerprint: {}", CertUtils.getFingerprint(keyPair.getPublic()));
+        log.info("Identity loaded. Signing key fingerprint: {}",
+                CertUtils.getFingerprint(keys.signing().getPublic())
+        );
+        log.info("Encryption key fingerprint: {}",
+                CertUtils.getFingerprint(keys.encryption().getPublic())
+        );
 
         ClientConfig config;
         if (!configManager.isConfigPresent()) {
@@ -88,18 +91,18 @@ class ClientApp {
 
         try (NetworkClient client = new NetworkClient(serverTrustManager, config.hostname(), config.port())) {
             client.connect();
-            if (!client.register(username, keyPair)) {
+            if (!client.register(username, keys)) {
                 throw new NetworkServiceException("Failed to register your user.");
             }
 
-            String message;
-            do {
-                message = ConsoleUtils.readString("Mock chat: ", _ -> true, null, 1);
-            } while (!"quit".equals(message));
+            CommunicationManager communicationManager = new CommunicationManager(
+                    username,
+                    keys,
+                    client
+            );
+            communicationManager.start();
 
-            if (!client.unregister(username)) {
-                throw new NetworkServiceException("Failed to unregister your user.");
-            }
+            log.info("Goodbye!");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
