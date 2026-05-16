@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
@@ -18,7 +17,7 @@ import java.util.concurrent.*;
 public class CommunicationManager {
 
     private final String myUsername;
-    private final PrivateKey myPrivateKey;
+    private final UserKeys myKeys;
     private final NetworkClient client;
     private final UserRegistry userRegistry = new UserRegistry();
     private final CompletableFuture<StatusResponse> unregisterFuture = new CompletableFuture<>();
@@ -27,9 +26,9 @@ public class CommunicationManager {
             .unstarted(this::listenLoop);
     private final Map<String, CompletableFuture<Void>> publicKeyFutures = new ConcurrentHashMap<>();
 
-    public CommunicationManager(String myUsername, PrivateKey myPrivateKey, NetworkClient client) {
+    public CommunicationManager(String myUsername, UserKeys myKeys, NetworkClient client) {
         this.myUsername = myUsername;
-        this.myPrivateKey = myPrivateKey;
+        this.myKeys = myKeys;
         this.client = client;
     }
 
@@ -98,18 +97,18 @@ public class CommunicationManager {
         String targetUsername = response.targetUsername();
 
         if (response.found()) {
-            log.info("Successfully obtained public key of user {}", targetUsername);
             try {
-                PublicKey publicKey = SecurityUtils.newPublicKey(response.targetPublicKey());
-                userRegistry.addUserPublicKeys(targetUsername, publicKey);
-
+                PublicKey signing = SecurityUtils.newSigningPublicKey(response.publicSigningKey());
+                PublicKey encryption = SecurityUtils.newEncryptionPublicKey(response.publicEncryptionKey());
+                userRegistry.addUserPublicKeys(targetUsername, signing, encryption);
+                log.info("Successfully obtained public keys of user {}", targetUsername);
             } catch (InvalidKeySpecException e) {
-                log.error("Failed to obtain public key of user {}", targetUsername, e);
-                userRegistry.addUserPublicKeys(targetUsername, null);
+                log.error("Failed to parse public keys of user {}", targetUsername, e);
+                userRegistry.markUnavailable(targetUsername);
             }
         } else {
-            log.error("Failed to obtain public key of user {}", targetUsername);
-            userRegistry.addUserPublicKeys(targetUsername, null);
+            log.error("Failed to obtain public keys of user {}", targetUsername);
+            userRegistry.markUnavailable(targetUsername);
         }
 
         CompletableFuture<Void> future = publicKeyFutures.get(targetUsername);
@@ -127,21 +126,27 @@ public class CommunicationManager {
         future.join();
         publicKeyFutures.remove(targetUsername);
 
-        PublicKey recipientPublicKey = userRegistry.getSigningKey(targetUsername);
-        if (recipientPublicKey == null) {
+        UserRegistry.UserPublicKeys recipientKeys = userRegistry.getKeys(targetUsername);
+        if (recipientKeys == null) {
             log.error("Failed to send message to user {}", targetUsername);
             return;
         }
 
         byte[] data = plainText.getBytes(StandardCharsets.UTF_8);
 
-        // TODO: encrypt
-        byte[] encryptedData = data; // EncryptionUtils.encrypt(recipientPublicKey, data);
+        MessageCrypto.Sealed sealed = MessageCrypto.encrypt(recipientKeys.encryption(), data);
+        byte[] signedPayload = MessageCrypto.signedPayload(
+                sealed.ephemeralPublicKey(), sealed.nonce(), sealed.cipherText()
+        );
+        byte[] signature = SigningUtils.sign(myKeys.signing().getPrivate(), signedPayload);
+
         EncryptedMessage message = new EncryptedMessage(
                 myUsername,
                 targetUsername,
-                encryptedData,
-                SigningUtils.sign(myPrivateKey, encryptedData),
+                sealed.ephemeralPublicKey(),
+                sealed.nonce(),
+                sealed.cipherText(),
+                signature,
                 System.currentTimeMillis()
         );
         client.send(message);
@@ -151,23 +156,31 @@ public class CommunicationManager {
     private void handleIncomingMessage(EncryptedMessage message) {
         String sender = message.sender();
 
-        PublicKey senderPublicKey = userRegistry.getSigningKey(sender);
-        if (senderPublicKey == null) {
-            log.error("Failed to read message from user {}", sender);
+        UserRegistry.UserPublicKeys senderKeys = userRegistry.getKeys(sender);
+        if (senderKeys == null) {
+            log.error("Failed to read message from user {}: no known public key", sender);
             return;
         }
 
-        if (!SigningUtils.verify(senderPublicKey, message.message(), message.signature())) {
+        byte[] signedPayload = MessageCrypto.signedPayload(
+                message.ephemeralPublicKey(), message.nonce(), message.message()
+        );
+        if (!SigningUtils.verify(senderKeys.signing(), signedPayload, message.signature())) {
             log.warn("Forged message detected from {}", sender);
             return;
         }
 
-        byte[] encryptedData = message.message();
-
-        // TODO: decrypt
-        byte[] data = encryptedData; // EncryptionUtils.decrypt(myPrivateKey, encryptedData);
-        String plainText = new String(data, StandardCharsets.UTF_8);
-
-        log.info("Message received from {}: {}", message.sender(), plainText);
+        try {
+            byte[] data = MessageCrypto.decrypt(
+                    myKeys.encryption().getPrivate(),
+                    message.ephemeralPublicKey(),
+                    message.nonce(),
+                    message.message()
+            );
+            String plainText = new String(data, StandardCharsets.UTF_8);
+            log.info("Message received from {}: {}", sender, plainText);
+        } catch (Exception e) {
+            log.error("Failed to decrypt message from {}", sender, e);
+        }
     }
 }

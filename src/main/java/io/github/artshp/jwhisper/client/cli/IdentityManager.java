@@ -24,7 +24,8 @@ import java.util.Date;
 @Slf4j
 class IdentityManager {
 
-    private static final String KEY_ALIAS = "jwhisper-id";
+    private static final String SIGNING_KEY_ALIAS = "jwhisper-sign";
+    private static final String ENCRYPTION_KEY_ALIAS = "jwhisper-encrypt";
     private static final String KEYSTORE_FILE = "identity.p12";
     private static final Path KEYSTORE_FILE_PATH = Path.of(KEYSTORE_FILE);
 
@@ -32,71 +33,89 @@ class IdentityManager {
         return Files.exists(KEYSTORE_FILE_PATH);
     }
 
-    public static KeyPair loadKeys(char[] password) throws WrongPasswordException {
+    public static UserKeys loadKeys(char[] password) throws WrongPasswordException {
         log.info("Trying to load existing key store from file \"{}\"", KEYSTORE_FILE_PATH);
 
         KeyStore keyStore = SecurityUtils.createAndLoadKeyStore(password, KEYSTORE_FILE_PATH);
         try {
-            PrivateKey privateKey = (PrivateKey) keyStore.getKey(KEY_ALIAS, password);
-            Certificate certificate = keyStore.getCertificate(KEY_ALIAS);
-
-            return new KeyPair(certificate.getPublicKey(), privateKey);
+            KeyPair signing = loadKeyPair(keyStore, SIGNING_KEY_ALIAS, password);
+            KeyPair encryption = loadKeyPair(keyStore, ENCRYPTION_KEY_ALIAS, password);
+            return new UserKeys(signing, encryption);
         } catch (NoSuchAlgorithmException | KeyStoreException | UnrecoverableKeyException e) {
             log.error("Failed to load keys from key store", e);
             throw new RuntimeException("Failed to load keys from key store", e);
         }
     }
 
-    public static KeyPair createKeys(char[] password, String username) {
+    private static KeyPair loadKeyPair(KeyStore keyStore, String alias, char[] password)
+            throws NoSuchAlgorithmException, KeyStoreException, UnrecoverableKeyException {
+        PrivateKey privateKey = (PrivateKey) keyStore.getKey(alias, password);
+        Certificate certificate = keyStore.getCertificate(alias);
+        return new KeyPair(certificate.getPublicKey(), privateKey);
+    }
+
+    public static UserKeys createKeys(char[] password, String username) {
         log.info("Key store file \"{}\" does not exist. Creating a new one", KEYSTORE_FILE_PATH);
 
         KeyStore keyStore = SecurityUtils.createAndLoadEmptyKeyStore();
-        KeyPair keyPair = SecurityUtils.KEY_PAIR_GENERATOR.generateKeyPair();
-        X509Certificate certificate = generateSelfSignedCertificate(keyPair, username);
+
+        KeyPair signing = SecurityUtils.SIGNING_KEY_PAIR_GENERATOR.generateKeyPair();
+        KeyPair encryption = SecurityUtils.ENCRYPTION_KEY_PAIR_GENERATOR.generateKeyPair();
+
+        X509Certificate signingCert = generateCertificate(signing.getPublic(), signing.getPrivate(), username);
+        X509Certificate encryptionCert = generateCertificate(encryption.getPublic(), signing.getPrivate(), username);
+
         try {
-            keyStore.setKeyEntry(KEY_ALIAS, keyPair.getPrivate(), password, new X509Certificate[]{certificate});
+            keyStore.setKeyEntry(
+                    SIGNING_KEY_ALIAS,
+                    signing.getPrivate(),
+                    password,
+                    new X509Certificate[]{signingCert}
+            );
+            keyStore.setKeyEntry(
+                    ENCRYPTION_KEY_ALIAS,
+                    encryption.getPrivate(),
+                    password,
+                    new X509Certificate[]{encryptionCert}
+            );
         } catch (KeyStoreException e) {
-            log.error("Failed to set key entry for {}.", KEY_ALIAS, e);
-            throw new RuntimeException("Failed to set key entry for " + KEY_ALIAS, e);
+            log.error("Failed to set key entries in key store.", e);
+            throw new RuntimeException("Failed to set key entries in key store", e);
         }
 
         SecurityUtils.saveKeyStore(keyStore, password, KEYSTORE_FILE_PATH);
-        return keyPair;
+        return new UserKeys(signing, encryption);
     }
 
-    private static X509Certificate generateSelfSignedCertificate(KeyPair keyPair, String username) {
+    private static X509Certificate generateCertificate(PublicKey subjectPublicKey, PrivateKey signingKey, String username) {
         final long now = System.currentTimeMillis();
-        X509v3CertificateBuilder certificateBuilder = getX509v3CertificateBuilder(keyPair, username, now);
+        X509v3CertificateBuilder certificateBuilder = getX509v3CertificateBuilder(subjectPublicKey, username, now);
 
         try {
-            // Sign it using the private key
-            ContentSigner contentSigner = new JcaContentSignerBuilder(SecurityUtils.USER_KEYS_ALGORITHM)
+            ContentSigner contentSigner = new JcaContentSignerBuilder(SecurityUtils.SIGNING_ALGORITHM)
                     .setProvider(SecurityUtils.BOUNCY_CASTLE_PROVIDER)
-                    .build(keyPair.getPrivate());
+                    .build(signingKey);
 
             X509CertificateHolder certificateHolder = certificateBuilder.build(contentSigner);
             return new JcaX509CertificateConverter()
                     .setProvider(SecurityUtils.BOUNCY_CASTLE_PROVIDER)
                     .getCertificate(certificateHolder);
         } catch (OperatorCreationException | CertificateException e) {
-            log.error("Failed to generate self signed certificate.", e);
-            throw new RuntimeException("Failed to generate self signed certificate.", e);
+            log.error("Failed to generate certificate.", e);
+            throw new RuntimeException("Failed to generate certificate.", e);
         }
     }
 
     private static X509v3CertificateBuilder getX509v3CertificateBuilder(
-            KeyPair keyPair, String username, long now
+            PublicKey subjectPublicKey, String username, long now
     ) {
         Date startDate = new Date(now);
-
-        // Create the certificate's subject and issuer (same for self-signed)
         X500Name name = new X500Name("CN=" + username);
         BigInteger certificateSerialNumber = BigInteger.valueOf(now);
-        Date endDate = new Date(now + 365L * 24 * 60 * 60 * 1000); // 1 year validity
+        Date endDate = new Date(now + 365L * 24 * 60 * 60 * 1000);
 
-        // Build the certificate
         return new JcaX509v3CertificateBuilder(
-                name, certificateSerialNumber, startDate, endDate, name, keyPair.getPublic()
+                name, certificateSerialNumber, startDate, endDate, name, subjectPublicKey
         );
     }
 }

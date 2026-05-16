@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
-import java.security.KeyPair;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 public class NetworkClient implements AutoCloseable {
@@ -47,11 +47,15 @@ public class NetworkClient implements AutoCloseable {
         }
     }
 
-    public boolean register(String username, KeyPair keyPair) throws IOException {
-        byte[] signature = SigningUtils.sign(keyPair.getPrivate(), username.getBytes());
+    public boolean register(String username, UserKeys keys) throws IOException {
+        byte[] signature = SigningUtils.sign(
+                keys.signing().getPrivate(),
+                username.getBytes(StandardCharsets.UTF_8)
+        );
         RegisterRequest request = new RegisterRequest(
                 username,
-                keyPair.getPublic().getEncoded(),
+                keys.signing().getPublic().getEncoded(),
+                keys.encryption().getPublic().getEncoded(),
                 signature
         );
 
