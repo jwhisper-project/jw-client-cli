@@ -1,5 +1,7 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.network;
 
+import io.github.artshp.jwhisper.client.cli.security.ServerTrustManager;
+import io.github.artshp.jwhisper.client.cli.users.UserKeys;
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
 import io.github.artshp.jwhisper.common.protocol.MessageTransport;

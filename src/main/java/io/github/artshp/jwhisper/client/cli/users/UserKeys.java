@@ -1,4 +1,4 @@
-package io.github.artshp.jwhisper.client.cli;
+package io.github.artshp.jwhisper.client.cli.users;
 
 import java.security.KeyPair;
 

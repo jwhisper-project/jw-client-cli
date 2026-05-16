@@ -1,5 +1,12 @@
 package io.github.artshp.jwhisper.client.cli;
 
+import io.github.artshp.jwhisper.client.cli.config.ClientConfig;
+import io.github.artshp.jwhisper.client.cli.config.ConfigManager;
+import io.github.artshp.jwhisper.client.cli.network.CommunicationManager;
+import io.github.artshp.jwhisper.client.cli.network.NetworkClient;
+import io.github.artshp.jwhisper.client.cli.security.IdentityManager;
+import io.github.artshp.jwhisper.client.cli.security.ServerTrustManager;
+import io.github.artshp.jwhisper.client.cli.users.UserKeys;
 import io.github.artshp.jwhisper.common.crypto.CertUtils;
 import io.github.artshp.jwhisper.common.crypto.PasswordUtils;
 import io.github.artshp.jwhisper.common.exception.InputRetryException;
