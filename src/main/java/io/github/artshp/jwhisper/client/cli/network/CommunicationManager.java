@@ -44,7 +44,7 @@ public class CommunicationManager {
 
     private void listenLoop() {
         try {
-            while (true) {
+            while (!shuttingDown) {
                 WhisperMessage incoming = client.receive();
 
                 switch (incoming) {
