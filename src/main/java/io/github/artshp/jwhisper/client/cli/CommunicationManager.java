@@ -6,6 +6,7 @@ import io.github.artshp.jwhisper.common.io.ConsoleUtils;
 import io.github.artshp.jwhisper.common.protocol.*;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
@@ -25,6 +26,7 @@ public class CommunicationManager {
             .name("listener")
             .unstarted(this::listenLoop);
     private final Map<String, CompletableFuture<Void>> publicKeyFutures = new ConcurrentHashMap<>();
+    private volatile boolean shuttingDown = false;
 
     public CommunicationManager(String myUsername, UserKeys myKeys, NetworkClient client) {
         this.myUsername = myUsername;
@@ -49,8 +51,16 @@ public class CommunicationManager {
                     default -> log.warn("Unknown message received: {}", incoming);
                 }
             }
-        } catch (Exception e) {
+        } catch (EOFException e) {
+            if (shuttingDown) {
+                log.debug("Listener stopped during shutdown.");
+            } else {
+                log.error("Connection lost.", e);
+            }
+        } catch (IOException e) {
             log.error("Connection lost.", e);
+        } catch (Exception e) {
+            log.error("Unexpected error occurred.", e);
         }
     }
 
@@ -84,6 +94,8 @@ public class CommunicationManager {
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
             log.error("Unregistering failed.", e);
             return;
+        } finally {
+            shuttingDown = true;
         }
 
         if (response.success()) {
