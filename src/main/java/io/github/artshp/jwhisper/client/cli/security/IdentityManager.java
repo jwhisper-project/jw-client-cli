@@ -35,7 +35,7 @@ public class IdentityManager {
     }
 
     public static UserKeys loadKeys(char[] password) throws WrongPasswordException {
-        log.info("Trying to load existing key store from file \"{}\"", KEYSTORE_FILE_PATH);
+        LOGGER.info("Trying to load existing key store from file \"{}\"", KEYSTORE_FILE_PATH);
 
         KeyStore keyStore = SecurityUtils.createAndLoadKeyStore(password, KEYSTORE_FILE_PATH);
         try {
@@ -43,7 +43,7 @@ public class IdentityManager {
             KeyPair encryption = loadKeyPair(keyStore, ENCRYPTION_KEY_ALIAS, password);
             return new UserKeys(signing, encryption);
         } catch (NoSuchAlgorithmException | KeyStoreException | UnrecoverableKeyException e) {
-            log.error("Failed to load keys from key store", e);
+            LOGGER.error("Failed to load keys from key store", e);
             throw new RuntimeException("Failed to load keys from key store", e);
         }
     }
@@ -56,7 +56,7 @@ public class IdentityManager {
     }
 
     public static UserKeys createKeys(char[] password, String username) {
-        log.info("Key store file \"{}\" does not exist. Creating a new one", KEYSTORE_FILE_PATH);
+        LOGGER.info("Key store file \"{}\" does not exist. Creating a new one", KEYSTORE_FILE_PATH);
 
         KeyStore keyStore = SecurityUtils.createAndLoadEmptyKeyStore();
 
@@ -80,7 +80,7 @@ public class IdentityManager {
                     new X509Certificate[]{encryptionCert}
             );
         } catch (KeyStoreException e) {
-            log.error("Failed to set key entries in key store.", e);
+            LOGGER.error("Failed to set key entries in key store.", e);
             throw new RuntimeException("Failed to set key entries in key store", e);
         }
 
@@ -102,7 +102,7 @@ public class IdentityManager {
                     .setProvider(SecurityUtils.BOUNCY_CASTLE_PROVIDER)
                     .getCertificate(certificateHolder);
         } catch (OperatorCreationException | CertificateException e) {
-            log.error("Failed to generate certificate.", e);
+            LOGGER.error("Failed to generate certificate.", e);
             throw new RuntimeException("Failed to generate certificate.", e);
         }
     }

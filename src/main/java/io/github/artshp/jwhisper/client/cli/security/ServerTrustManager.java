@@ -29,10 +29,10 @@ public class ServerTrustManager {
         this.password = password;
 
         if (Files.exists(TRUSTSTORE_FILE_PATH)) {
-            log.debug("Loading truststore from {}", TRUSTSTORE_FILE_PATH);
+            LOGGER.debug("Loading truststore from {}", TRUSTSTORE_FILE_PATH);
             trustStore = SecurityUtils.createAndLoadKeyStore(password, TRUSTSTORE_FILE_PATH);
         } else {
-            log.debug("Creating new truststore");
+            LOGGER.debug("Creating new truststore");
             trustStore = SecurityUtils.createAndLoadEmptyKeyStore();
             saveTrustStore();
         }
@@ -42,12 +42,12 @@ public class ServerTrustManager {
         try {
             trustStore.setCertificateEntry(UUID.randomUUID().toString(), certificate);
         } catch (KeyStoreException e) {
-            log.error("Failed to set trusted certificate", e);
+            LOGGER.error("Failed to set trusted certificate", e);
             return;
         }
 
         saveTrustStore();
-        log.info("Trusted certificate with fingerprint {} added", CertUtils.getFingerprint(certificate));
+        LOGGER.info("Trusted certificate with fingerprint {} added", CertUtils.getFingerprint(certificate));
     }
 
     public SSLSocketFactory getSSLSocketFactory() {
@@ -60,7 +60,7 @@ public class ServerTrustManager {
 
             return ctx.getSocketFactory();
         } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException e) {
-            log.error("Failed to initialize SSL context", e);
+            LOGGER.error("Failed to initialize SSL context", e);
             throw new RuntimeException("Failed to initialize SSL context", e);
         }
     }

@@ -51,24 +51,24 @@ public class CommunicationManager {
                     case EncryptedMessage message -> handleIncomingMessage(message);
                     case UserPublicKeyResponse publicKeyResponse -> handleKeyResponse(publicKeyResponse);
                     case StatusResponse statusResponse -> unregisterFuture.complete(statusResponse);
-                    default -> log.warn("Unknown message received: {}", incoming);
+                    default -> LOGGER.warn("Unknown message received: {}", incoming);
                 }
             }
         } catch (EOFException e) {
             if (shuttingDown) {
-                log.debug("Listener stopped during shutdown.");
+                LOGGER.debug("Listener stopped during shutdown.");
             } else {
-                log.error("Connection lost.", e);
+                LOGGER.error("Connection lost.", e);
             }
         } catch (IOException e) {
-            log.error("Connection lost.", e);
+            LOGGER.error("Connection lost.", e);
         } catch (Exception e) {
-            log.error("Unexpected error occurred.", e);
+            LOGGER.error("Unexpected error occurred.", e);
         }
     }
 
     private void uiLoop() {
-        log.info("Starting chat.");
+        LOGGER.info("Starting chat.");
         while (true) {
             try {
                 String cmd = ConsoleUtils.readString("", _ -> true, null, 1);
@@ -77,12 +77,12 @@ public class CommunicationManager {
                     String[] parts = cmd.split(" ", 3);
                     sendDirectMessage(parts[1], parts[2]);
                 } else if (cmd.startsWith("/exit")) {
-                    log.info("Exiting.");
+                    LOGGER.info("Exiting.");
                     unregister();
                     return;
                 }
             } catch (Exception e) {
-                log.error("Command failed.", e);
+                LOGGER.error("Command failed.", e);
             }
         }
     }
@@ -95,16 +95,16 @@ public class CommunicationManager {
         try {
             response = unregisterFuture.get(5, TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
-            log.error("Unregistering failed.", e);
+            LOGGER.error("Unregistering failed.", e);
             return;
         } finally {
             shuttingDown = true;
         }
 
         if (response.success()) {
-            log.info("Successfully unregistered user {}", myUsername);
+            LOGGER.info("Successfully unregistered user {}", myUsername);
         } else {
-            log.error("Failed to unregister user {}", myUsername);
+            LOGGER.error("Failed to unregister user {}", myUsername);
         }
     }
 
@@ -116,13 +116,13 @@ public class CommunicationManager {
                 PublicKey signing = SecurityUtils.newSigningPublicKey(response.publicSigningKey());
                 PublicKey encryption = SecurityUtils.newEncryptionPublicKey(response.publicEncryptionKey());
                 userRegistry.addUserPublicKeys(targetUsername, signing, encryption);
-                log.info("Successfully obtained public keys of user {}", targetUsername);
+                LOGGER.info("Successfully obtained public keys of user {}", targetUsername);
             } catch (InvalidKeySpecException e) {
-                log.error("Failed to parse public keys of user {}", targetUsername, e);
+                LOGGER.error("Failed to parse public keys of user {}", targetUsername, e);
                 userRegistry.markUnavailable(targetUsername);
             }
         } else {
-            log.error("Failed to obtain public keys of user {}", targetUsername);
+            LOGGER.error("Failed to obtain public keys of user {}", targetUsername);
             userRegistry.markUnavailable(targetUsername);
         }
 
@@ -143,7 +143,7 @@ public class CommunicationManager {
 
         UserRegistry.UserPublicKeys recipientKeys = userRegistry.getKeys(targetUsername);
         if (recipientKeys == null) {
-            log.error("Failed to send message to user {}", targetUsername);
+            LOGGER.error("Failed to send message to user {}", targetUsername);
             return;
         }
 
@@ -165,7 +165,7 @@ public class CommunicationManager {
                 System.currentTimeMillis()
         );
         client.send(message);
-        log.info("Message sent to {}", targetUsername);
+        LOGGER.info("Message sent to {}", targetUsername);
     }
 
     private void handleIncomingMessage(EncryptedMessage message) {
@@ -173,7 +173,7 @@ public class CommunicationManager {
 
         UserRegistry.UserPublicKeys senderKeys = userRegistry.getKeys(sender);
         if (senderKeys == null) {
-            log.error("Failed to read message from user {}: no known public key", sender);
+            LOGGER.error("Failed to read message from user {}: no known public key", sender);
             return;
         }
 
@@ -181,7 +181,7 @@ public class CommunicationManager {
                 message.ephemeralPublicKey(), message.nonce(), message.message()
         );
         if (!SigningUtils.verify(senderKeys.signing(), signedPayload, message.signature())) {
-            log.warn("Forged message detected from {}", sender);
+            LOGGER.warn("Forged message detected from {}", sender);
             return;
         }
 
@@ -193,9 +193,9 @@ public class CommunicationManager {
                     message.message()
             );
             String plainText = new String(data, StandardCharsets.UTF_8);
-            log.info("Message received from {}: {}", sender, plainText);
+            LOGGER.info("Message received from {}: {}", sender, plainText);
         } catch (Exception e) {
-            log.error("Failed to decrypt message from {}", sender, e);
+            LOGGER.error("Failed to decrypt message from {}", sender, e);
         }
     }
 }

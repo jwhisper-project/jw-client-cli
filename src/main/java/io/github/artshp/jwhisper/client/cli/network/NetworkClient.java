@@ -32,7 +32,7 @@ public class NetworkClient implements AutoCloseable {
     }
 
     public void connect() {
-        log.info("Connecting to relay at {}:{}...", host, port);
+        LOGGER.info("Connecting to relay at {}:{}...", host, port);
 
         try {
             SSLSocketFactory factory = trustManager.getSSLSocketFactory(); /* (SSLSocketFactory) SSLSocketFactory.getDefault(); */
@@ -42,9 +42,9 @@ public class NetworkClient implements AutoCloseable {
             socket.setEnabledProtocols(new String[]{SecurityUtils.SSL_PROTOCOL});
             socket.startHandshake();
 
-            log.debug("TLS connection established");
+            LOGGER.debug("TLS connection established");
         } catch (IOException e) {
-            log.error("Error connecting to relay", e);
+            LOGGER.error("Error connecting to relay", e);
             throw new RuntimeException(e);
         }
     }
@@ -66,13 +66,13 @@ public class NetworkClient implements AutoCloseable {
 
         if (response instanceof StatusResponse statusResponse) {
             if (statusResponse.success()) {
-                log.info("Successfully registered user {}", username);
+                LOGGER.info("Successfully registered user {}", username);
                 return true;
             } else {
-                log.error("Failed to register user {}", username);
+                LOGGER.error("Failed to register user {}", username);
             }
         } else {
-            log.error("Unexpected response {}. Failed to register user {}", response, username);
+            LOGGER.error("Unexpected response {}. Failed to register user {}", response, username);
         }
 
         return false;
@@ -88,7 +88,7 @@ public class NetworkClient implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        log.info("Closing connection to relay");
+        LOGGER.info("Closing connection to relay");
         if (socket != null) {
             socket.close();
         }

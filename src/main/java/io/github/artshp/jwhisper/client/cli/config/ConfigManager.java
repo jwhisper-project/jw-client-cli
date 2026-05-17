@@ -21,25 +21,25 @@ public class ConfigManager {
             .build();
 
     public void saveConfig(ClientConfig config) throws ConfigFileException {
-        log.debug("Trying to save config to {}", CONFIG_FILE_PATH);
+        LOGGER.debug("Trying to save config to {}", CONFIG_FILE_PATH);
         try {
             mapper.writeValue(CONFIG_FILE_PATH, config);
-            log.info("Successfully saved config to {}", CONFIG_FILE_PATH);
+            LOGGER.info("Successfully saved config to {}", CONFIG_FILE_PATH);
         } catch (JacksonException e) {
-            log.error("Failed to save config to {}", CONFIG_FILE_PATH, e);
+            LOGGER.error("Failed to save config to {}", CONFIG_FILE_PATH, e);
             throw new ConfigFileException("Failed to save config file", e);
         }
     }
 
     public ClientConfig loadConfig() throws ConfigFileException {
-        log.debug("Trying to load config from {}", CONFIG_FILE_PATH);
+        LOGGER.debug("Trying to load config from {}", CONFIG_FILE_PATH);
         try {
             ClientConfig config = mapper.readValue(CONFIG_FILE_PATH, ClientConfig.class);
-            log.info("Successfully loaded config from {}", CONFIG_FILE_PATH);
+            LOGGER.info("Successfully loaded config from {}", CONFIG_FILE_PATH);
 
             return config;
         } catch (JacksonException e) {
-            log.error("Failed to load config from {}", CONFIG_FILE_PATH, e);
+            LOGGER.error("Failed to load config from {}", CONFIG_FILE_PATH, e);
             throw new ConfigFileException("Failed to load config file", e);
         }
     }
