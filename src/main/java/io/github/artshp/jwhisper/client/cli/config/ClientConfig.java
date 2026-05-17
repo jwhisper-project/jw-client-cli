@@ -9,9 +9,16 @@ import tools.jackson.databind.ObjectMapper;
  */
 public record ClientConfig(String hostname, int port) {
 
-    private static final ObjectMapper mapper = new ObjectMapper();
+    /**
+     * Object mapper for pretty-printing config files.
+     */
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Create pretty-printed client config.
+     * @return string of pretty-printed client config
+     */
     public String toPrettyString() {
-        return mapper.writeValueAsString(this);
+        return MAPPER.writeValueAsString(this);
     }
 }
