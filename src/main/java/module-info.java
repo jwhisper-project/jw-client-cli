@@ -1,3 +1,6 @@
+/**
+ * JWhisper CLI client.
+ */
 module jwhisper.client.cli {
     requires static lombok;
 
