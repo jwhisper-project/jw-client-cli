@@ -25,6 +25,9 @@ import java.util.Optional;
 @Slf4j
 class ClientApp {
 
+    /**
+     * Config file manager.
+     */
     private final ConfigManager configManager = new ConfigManager();
 
     /**
@@ -35,6 +38,8 @@ class ClientApp {
 
     /**
      * Start client application.
+     * @throws InputRetryException if user failed to provide required value
+     * @throws NetworkServiceException if failed to register user
      */
     public void start() throws InputRetryException, NetworkServiceException {
         LOGGER.info("Starting Client App");
