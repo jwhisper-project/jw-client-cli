@@ -10,20 +10,44 @@ import tools.jackson.databind.json.JsonMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * Configuration manager. Responsible for creating and loading configs.
+ */
 @Slf4j
 public class ConfigManager {
 
+    /**
+     * Configuration file name.
+     */
     private static final String CONFIG_FILE = "config.json";
+
+    /**
+     * Configuration file path.
+     */
     private static final Path CONFIG_FILE_PATH = Path.of(CONFIG_FILE);
 
-    private static final ObjectMapper mapper = JsonMapper.builder()
+    /**
+     * Object mapper responsible for persisting/loading configuration.
+     */
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
             .enable(SerializationFeature.INDENT_OUTPUT)
             .build();
 
+    /**
+     * Create a new instance of config manager.
+     */
+    public ConfigManager() {
+    }
+
+    /**
+     * Persist configuration.
+     * @param config config to save
+     * @throws ConfigFileException if failed to save config file
+     */
     public void saveConfig(ClientConfig config) throws ConfigFileException {
         LOGGER.debug("Trying to save config to {}", CONFIG_FILE_PATH);
         try {
-            mapper.writeValue(CONFIG_FILE_PATH, config);
+            MAPPER.writeValue(CONFIG_FILE_PATH, config);
             LOGGER.info("Successfully saved config to {}", CONFIG_FILE_PATH);
         } catch (JacksonException e) {
             LOGGER.error("Failed to save config to {}", CONFIG_FILE_PATH, e);
@@ -31,10 +55,15 @@ public class ConfigManager {
         }
     }
 
+    /**
+     * Load configuration.
+     * @return loaded configuration
+     * @throws ConfigFileException if failed to load config file
+     */
     public ClientConfig loadConfig() throws ConfigFileException {
         LOGGER.debug("Trying to load config from {}", CONFIG_FILE_PATH);
         try {
-            ClientConfig config = mapper.readValue(CONFIG_FILE_PATH, ClientConfig.class);
+            ClientConfig config = MAPPER.readValue(CONFIG_FILE_PATH, ClientConfig.class);
             LOGGER.info("Successfully loaded config from {}", CONFIG_FILE_PATH);
 
             return config;
@@ -44,6 +73,10 @@ public class ConfigManager {
         }
     }
 
+    /**
+     * Is configuration file present?
+     * @return {@code true} if config file is present, otherwise {@code false}
+     */
     public boolean isConfigPresent() {
         return Files.exists(CONFIG_FILE_PATH);
     }
