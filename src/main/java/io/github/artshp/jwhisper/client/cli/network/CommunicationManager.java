@@ -221,9 +221,7 @@ public class CommunicationManager {
             throw new NetworkServiceException("Failed to encrypt message for user " + targetUsername, e);
         }
 
-        byte[] signedPayload = MessageCrypto.signedPayload(
-                sealed.ephemeralPublicKey(), sealed.nonce(), sealed.cipherText()
-        );
+        byte[] signedPayload = MessageCrypto.signedPayload(sealed);
         byte[] signature = SigningUtils.sign(myKeys.signing().getPrivate(), signedPayload);
 
         EncryptedMessage message = new EncryptedMessage(
@@ -252,9 +250,10 @@ public class CommunicationManager {
             return;
         }
 
-        byte[] signedPayload = MessageCrypto.signedPayload(
+        MessageCrypto.Sealed sealed = new MessageCrypto.Sealed(
                 message.ephemeralPublicKey(), message.nonce(), message.message()
         );
+        byte[] signedPayload = MessageCrypto.signedPayload(sealed);
         if (!SigningUtils.verify(senderKeys.signing(), signedPayload, message.signature())) {
             LOGGER.warn("Forged message detected from {}", sender);
             return;
@@ -263,9 +262,7 @@ public class CommunicationManager {
         try {
             byte[] data = MessageCrypto.decrypt(
                     myKeys.encryption().getPrivate(),
-                    message.ephemeralPublicKey(),
-                    message.nonce(),
-                    message.message()
+                    sealed
             );
             String plainText = new String(data, StandardCharsets.UTF_8);
             LOGGER.info("Message received from {}: {}", sender, plainText);

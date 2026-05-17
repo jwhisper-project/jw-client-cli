@@ -9,7 +9,10 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.security.*;
 
-public class MessageCrypto {
+/**
+ * Service responsible for messages encryption/decryption.
+ */
+public final class MessageCrypto {
 
     private static final String ENCRYPTION_ALGORITHM = "AES";
     private static final int NONCE_LENGTH = 12;
@@ -17,6 +20,13 @@ public class MessageCrypto {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    /**
+     * Encrypt raw message bytes addressed to specific recipient.
+     * @param recipientEncryptionKey recipient's public encryption key
+     * @param plainText raw message bytes
+     * @return encrypted package
+     * @throws GeneralSecurityException if error occurred during encryption
+     */
     public static Sealed encrypt(PublicKey recipientEncryptionKey, byte[] plainText)
             throws GeneralSecurityException {
         KeyPair ephemeral = generateEphemeralKeyPair();
@@ -32,14 +42,21 @@ public class MessageCrypto {
                 new SecretKeySpec(aesKey, ENCRYPTION_ALGORITHM),
                 new GCMParameterSpec(GCM_TAG_LENGTH, nonce)
         );
-        byte[] ciphertext = cipher.doFinal(plainText);
+        byte[] cipherText = cipher.doFinal(plainText);
 
-        return new Sealed(ephemeral.getPublic().getEncoded(), nonce, ciphertext);
+        return new Sealed(ephemeral.getPublic().getEncoded(), nonce, cipherText);
     }
 
-    public static byte[] decrypt(PrivateKey myEncryptionKey, byte[] ephemeralPublicKey, byte[] nonce, byte[] cipherText)
+    /**
+     * Decrypt encrypted message bytes addressed to specific recipient.
+     * @param myEncryptionKey recipient's private encryption key
+     * @param sealed encrypted package
+     * @return decrypted raw message bytes
+     * @throws GeneralSecurityException if error occurred during decryption
+     */
+    public static byte[] decrypt(PrivateKey myEncryptionKey, Sealed sealed)
             throws GeneralSecurityException {
-        PublicKey senderEphemeral = SecurityUtils.newEncryptionPublicKey(ephemeralPublicKey);
+        PublicKey senderEphemeral = SecurityUtils.newEncryptionPublicKey(sealed.ephemeralPublicKey);
         byte[] sharedSecret = deriveSharedSecret(myEncryptionKey, senderEphemeral);
         byte[] aesKey = deriveAesKey(sharedSecret);
 
@@ -47,21 +64,34 @@ public class MessageCrypto {
         cipher.init(
                 Cipher.DECRYPT_MODE,
                 new SecretKeySpec(aesKey, ENCRYPTION_ALGORITHM),
-                new GCMParameterSpec(GCM_TAG_LENGTH, nonce)
+                new GCMParameterSpec(GCM_TAG_LENGTH, sealed.nonce)
         );
 
-        return cipher.doFinal(cipherText);
+        return cipher.doFinal(sealed.cipherText);
     }
 
-    public static byte[] signedPayload(byte[] ephemeralPublicKey, byte[] nonce, byte[] cipherText) {
-        return ByteBuffer.allocate(ephemeralPublicKey.length + nonce.length + cipherText.length)
-                .put(ephemeralPublicKey)
-                .put(nonce)
-                .put(cipherText)
+    /**
+     * Create payload for signature from encrypted package.
+     * @param sealed encrypted package
+     * @return computed payload (raw bytes)
+     */
+    public static byte[] signedPayload(Sealed sealed) {
+        return ByteBuffer.allocate(sealed.ephemeralPublicKey.length + sealed.nonce.length + sealed.cipherText.length)
+                .put(sealed.ephemeralPublicKey)
+                .put(sealed.nonce)
+                .put(sealed.cipherText)
                 .array();
     }
 
-    private static byte[] deriveSharedSecret(PrivateKey privateKey, PublicKey publicKey) throws GeneralSecurityException {
+    /**
+     * Derive shared secret for end-to-end encryption between clients.
+     * @param privateKey private key
+     * @param publicKey public key
+     * @return derived shared secret
+     * @throws GeneralSecurityException if error occurred during shared secret derivation
+     */
+    private static byte[] deriveSharedSecret(PrivateKey privateKey, PublicKey publicKey)
+            throws GeneralSecurityException {
         KeyAgreement agreement = KeyAgreement.getInstance(SecurityUtils.ENCRYPTION_ALGORITHM);
 
         agreement.init(privateKey);
@@ -70,14 +100,37 @@ public class MessageCrypto {
         return agreement.generateSecret();
     }
 
+    /**
+     * Derive {@code AES} key from shared secret computing its fingerprint.
+     * @param sharedSecret shared secret
+     * @return derived {@code AES} key
+     */
     private static byte[] deriveAesKey(byte[] sharedSecret) {
         return SecurityUtils.MESSAGE_DIGEST.digest(sharedSecret);
     }
 
+    /**
+     * Generate ephemeral key pair for end-to-end encryption of messages.
+     * @return generated key pair
+     */
     private static KeyPair generateEphemeralKeyPair() {
         return SecurityUtils.ENCRYPTION_KEY_PAIR_GENERATOR.generateKeyPair();
     }
 
-    public record Sealed(byte[] ephemeralPublicKey, byte[] nonce, byte[] cipherText) {
+    /**
+     * Encrypted message package.
+     * @param ephemeralPublicKey ephemeral public key
+     * @param nonce nonce
+     * @param cipherText encrypted message
+     */
+    public record Sealed(
+            byte[] ephemeralPublicKey,
+            byte[] nonce,
+            byte[] cipherText
+    ) {
+    }
+
+    private MessageCrypto() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 }
