@@ -6,7 +6,11 @@ import lombok.extern.slf4j.Slf4j;
  * Client app entry point.
  */
 @Slf4j
-class Main {
+final class Main {
+
+    private Main() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     /**
      * Client app entry point.
