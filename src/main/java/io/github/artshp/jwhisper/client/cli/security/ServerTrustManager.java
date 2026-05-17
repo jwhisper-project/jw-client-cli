@@ -16,15 +16,36 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.UUID;
 
+/**
+ * Manager responsible for certificates of trusted relay servers.
+ */
 @Slf4j
 public class ServerTrustManager {
 
+    /**
+     * Filename of key store with trusted servers' certificates
+     */
     private static final String TRUSTSTORE_FILE = "truststore.p12";
+
+    /**
+     * Path to key store with trusted servers' certificates
+     */
     private static final Path TRUSTSTORE_FILE_PATH = Path.of(TRUSTSTORE_FILE);
 
+    /**
+     * Key store password
+     */
     private final char[] password;
+
+    /**
+     * Key store with trusted servers' certificates
+     */
     private final KeyStore trustStore;
 
+    /**
+     * Create a new server trust manager.
+     * @param password password to key store
+     */
     public ServerTrustManager(char[] password) {
         this.password = password;
 
@@ -38,6 +59,10 @@ public class ServerTrustManager {
         }
     }
 
+    /**
+     * Add a new trusted certificate to trust store.
+     * @param certificate certificate to be trusted
+     */
     public void addTrustedCertificate(X509Certificate certificate) {
         try {
             trustStore.setCertificateEntry(UUID.randomUUID().toString(), certificate);
@@ -50,6 +75,10 @@ public class ServerTrustManager {
         LOGGER.info("Trusted certificate with fingerprint {} added", CertUtils.getFingerprint(certificate));
     }
 
+    /**
+     * Generate SSL socket factory trusting only to the white list of certificates/servers.
+     * @return generated SSL socket factory
+     */
     public SSLSocketFactory getSSLSocketFactory() {
         try {
             TrustManagerFactory tmf = SecurityUtils.newTrustManagerFactory();
@@ -65,6 +94,9 @@ public class ServerTrustManager {
         }
     }
 
+    /**
+     * Persist trust store.
+     */
     private void saveTrustStore() {
         SecurityUtils.saveKeyStore(trustStore, password, TRUSTSTORE_FILE_PATH);
     }
