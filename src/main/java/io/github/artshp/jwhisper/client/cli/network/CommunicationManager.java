@@ -5,6 +5,7 @@ import io.github.artshp.jwhisper.client.cli.users.UserKeys;
 import io.github.artshp.jwhisper.client.cli.users.UserRegistry;
 import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
+import io.github.artshp.jwhisper.common.exception.NetworkServiceException;
 import io.github.artshp.jwhisper.common.io.ConsoleUtils;
 import io.github.artshp.jwhisper.common.protocol.*;
 import lombok.extern.slf4j.Slf4j;
@@ -12,36 +13,83 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.concurrent.*;
 
+/**
+ * Service responsible for double-ended network communication with relay.
+ */
 @Slf4j
 public class CommunicationManager {
 
+    /**
+     * User's username.
+     */
     private final String myUsername;
+
+    /**
+     * User's signing and encryption keys.
+     */
     private final UserKeys myKeys;
+
+    /**
+     * Service responsible for sending messages over network.
+     */
     private final NetworkClient client;
+
+    /**
+     * Service for caching information about other users.
+     */
     private final UserRegistry userRegistry = new UserRegistry();
+
+    /**
+     * Future for unregister request.
+     */
     private final CompletableFuture<StatusResponse> unregisterFuture = new CompletableFuture<>();
+
+    /**
+     * Listener thread, i.e. thread for incoming messages/responses from relay server.
+     */
     private final Thread listenThread = Thread.ofVirtual()
             .name("listener")
             .unstarted(this::listenLoop);
+
+    /**
+     * Map of username to public keys fetch future.
+     */
     private final Map<String, CompletableFuture<Void>> publicKeyFutures = new ConcurrentHashMap<>();
+
+    /**
+     * Flag for shutting down. Needed to normally finish listening loop.
+     */
     private volatile boolean shuttingDown = false;
 
+    /**
+     * Create a new communication manager instance.
+     * @param myUsername user's username
+     * @param myKeys user's signing and encryption keys
+     * @param client network service
+     */
     public CommunicationManager(String myUsername, UserKeys myKeys, NetworkClient client) {
         this.myUsername = myUsername;
         this.myKeys = myKeys;
         this.client = client;
     }
 
+    /**
+     * Start double-ended communication with relay server.
+     */
     public void start() {
         listenThread.start();
         uiLoop();
     }
 
+    /**
+     * Method responsible for all incoming messages.
+     */
     private void listenLoop() {
         try {
             while (!shuttingDown) {
@@ -67,13 +115,15 @@ public class CommunicationManager {
         }
     }
 
+    /**
+     * Method responsible for all outcoming messages.
+     */
     private void uiLoop() {
         LOGGER.info("Starting chat.");
         while (true) {
             try {
                 String cmd = ConsoleUtils.readString("", _ -> true, null, 1);
                 if (cmd.startsWith("/msg")) {
-                    // Example: /msg bob Hello!
                     String[] parts = cmd.split(" ", 3);
                     sendDirectMessage(parts[1], parts[2]);
                 } else if (cmd.startsWith("/exit")) {
@@ -87,6 +137,10 @@ public class CommunicationManager {
         }
     }
 
+    /**
+     * Send unregister request.
+     * @throws IOException if failed to send request
+     */
     private void unregister() throws IOException {
         UnregisterRequest request = new UnregisterRequest();
         client.send(request);
@@ -108,6 +162,10 @@ public class CommunicationManager {
         }
     }
 
+    /**
+     * Handle user public keys message from relay server.
+     * @param response server's message/response
+     */
     private void handleKeyResponse(UserPublicKeyResponse response) {
         String targetUsername = response.targetUsername();
 
@@ -132,7 +190,14 @@ public class CommunicationManager {
         }
     }
 
-    private void sendDirectMessage(String targetUsername, String plainText) throws Exception {
+    /**
+     * Send direct message to user.
+     * @param targetUsername target user username
+     * @param plainText message to send
+     * @throws NetworkServiceException if failed to encrypt message for user
+     * @throws IOException if failed to send message
+     */
+    private void sendDirectMessage(String targetUsername, String plainText) throws NetworkServiceException, IOException {
         CompletableFuture<Void> future = new CompletableFuture<>();
         publicKeyFutures.put(targetUsername, future);
 
@@ -149,7 +214,13 @@ public class CommunicationManager {
 
         byte[] data = plainText.getBytes(StandardCharsets.UTF_8);
 
-        MessageCrypto.Sealed sealed = MessageCrypto.encrypt(recipientKeys.encryption(), data);
+        MessageCrypto.Sealed sealed;
+        try {
+            sealed = MessageCrypto.encrypt(recipientKeys.encryption(), data);
+        } catch (GeneralSecurityException e) {
+            throw new NetworkServiceException("Failed to encrypt message for user " + targetUsername, e);
+        }
+
         byte[] signedPayload = MessageCrypto.signedPayload(
                 sealed.ephemeralPublicKey(), sealed.nonce(), sealed.cipherText()
         );
@@ -168,6 +239,10 @@ public class CommunicationManager {
         LOGGER.info("Message sent to {}", targetUsername);
     }
 
+    /**
+     * Handle incoming message from another user.
+     * @param message incoming message
+     */
     private void handleIncomingMessage(EncryptedMessage message) {
         String sender = message.sender();
 
