@@ -16,40 +16,69 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.UUID;
 
+/**
+ * Manager responsible for certificates of trusted relay servers.
+ */
 @Slf4j
 public class ServerTrustManager {
 
+    /**
+     * Filename of key store with trusted servers' certificates
+     */
     private static final String TRUSTSTORE_FILE = "truststore.p12";
+
+    /**
+     * Path to key store with trusted servers' certificates
+     */
     private static final Path TRUSTSTORE_FILE_PATH = Path.of(TRUSTSTORE_FILE);
 
+    /**
+     * Key store password
+     */
     private final char[] password;
+
+    /**
+     * Key store with trusted servers' certificates
+     */
     private final KeyStore trustStore;
 
+    /**
+     * Create a new server trust manager.
+     * @param password password to key store
+     */
     public ServerTrustManager(char[] password) {
         this.password = password;
 
         if (Files.exists(TRUSTSTORE_FILE_PATH)) {
-            log.debug("Loading truststore from {}", TRUSTSTORE_FILE_PATH);
+            LOGGER.debug("Loading truststore from {}", TRUSTSTORE_FILE_PATH);
             trustStore = SecurityUtils.createAndLoadKeyStore(password, TRUSTSTORE_FILE_PATH);
         } else {
-            log.debug("Creating new truststore");
+            LOGGER.debug("Creating new truststore");
             trustStore = SecurityUtils.createAndLoadEmptyKeyStore();
             saveTrustStore();
         }
     }
 
+    /**
+     * Add a new trusted certificate to trust store.
+     * @param certificate certificate to be trusted
+     */
     public void addTrustedCertificate(X509Certificate certificate) {
         try {
             trustStore.setCertificateEntry(UUID.randomUUID().toString(), certificate);
         } catch (KeyStoreException e) {
-            log.error("Failed to set trusted certificate", e);
+            LOGGER.error("Failed to set trusted certificate", e);
             return;
         }
 
         saveTrustStore();
-        log.info("Trusted certificate with fingerprint {} added", CertUtils.getFingerprint(certificate));
+        LOGGER.info("Trusted certificate with fingerprint {} added", CertUtils.getFingerprint(certificate));
     }
 
+    /**
+     * Generate SSL socket factory trusting only to the white list of certificates/servers.
+     * @return generated SSL socket factory
+     */
     public SSLSocketFactory getSSLSocketFactory() {
         try {
             TrustManagerFactory tmf = SecurityUtils.newTrustManagerFactory();
@@ -60,11 +89,14 @@ public class ServerTrustManager {
 
             return ctx.getSocketFactory();
         } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException e) {
-            log.error("Failed to initialize SSL context", e);
+            LOGGER.error("Failed to initialize SSL context", e);
             throw new RuntimeException("Failed to initialize SSL context", e);
         }
     }
 
+    /**
+     * Persist trust store.
+     */
     private void saveTrustStore() {
         SecurityUtils.saveKeyStore(trustStore, password, TRUSTSTORE_FILE_PATH);
     }

@@ -25,6 +25,9 @@ import java.util.Optional;
 @Slf4j
 class ClientApp {
 
+    /**
+     * Config file manager.
+     */
     private final ConfigManager configManager = new ConfigManager();
 
     /**
@@ -35,9 +38,11 @@ class ClientApp {
 
     /**
      * Start client application.
+     * @throws InputRetryException if user failed to provide required value
+     * @throws NetworkServiceException if failed to register user
      */
     public void start() throws InputRetryException, NetworkServiceException {
-        log.info("Starting Client App");
+        LOGGER.info("Starting Client App");
         System.out.println("----- JWhisper Client -----");
 
         String username = UserInputUtils.readUsername();
@@ -45,32 +50,32 @@ class ClientApp {
         UserKeys keys;
         char[] password;
         if (IdentityManager.isKeyStoreAvailable()) {
-            log.info("Key Store is available. Trying to load it...");
+            LOGGER.info("Key Store is available. Trying to load it...");
 
             password = UserInputUtils.readPassword();
             try {
                 keys = IdentityManager.loadKeys(password);
             } catch (WrongPasswordException e) {
-                log.error("Wrong password provided.");
+                LOGGER.error("Wrong password provided.");
                 return;
             }
         } else {
-            log.info("Key Store is not available. Creating it...");
+            LOGGER.info("Key Store is not available. Creating it...");
 
             password = UserInputUtils.readNewPassword();
             keys = IdentityManager.createKeys(password, username);
         }
 
-        log.info("Identity loaded. Signing key fingerprint: {}",
+        LOGGER.info("Identity loaded. Signing key fingerprint: {}",
                 CertUtils.getFingerprint(keys.signing().getPublic())
         );
-        log.info("Encryption key fingerprint: {}",
+        LOGGER.info("Encryption key fingerprint: {}",
                 CertUtils.getFingerprint(keys.encryption().getPublic())
         );
 
         ClientConfig config;
         if (!configManager.isConfigPresent()) {
-            log.debug("No config present. Creating it...");
+            LOGGER.debug("No config present. Creating it...");
 
             String hostname = UserInputUtils.readHostname();
             int port = UserInputUtils.readPort();
@@ -78,17 +83,17 @@ class ClientApp {
             config = new ClientConfig(hostname, port);
             configManager.saveConfig(config);
         } else {
-            log.debug("Config present. Loading it...");
+            LOGGER.debug("Config present. Loading it...");
             config = configManager.loadConfig();
         }
 
-        log.info("Used config: {}", config.toPrettyString());
+        LOGGER.info("Used config: {}", config.toPrettyString());
 
         ServerTrustManager serverTrustManager = new ServerTrustManager(password);
         if (UserInputUtils.askYesNo("Do you want to add server's certificate?")) {
             Optional<X509Certificate> certificateOptional = UserInputUtils.readCertificate();
             if (certificateOptional.isEmpty()) {
-                log.error("Failed to load certificate.");
+                LOGGER.error("Failed to load certificate.");
                 return;
             }
 
@@ -110,7 +115,7 @@ class ClientApp {
             );
             communicationManager.start();
 
-            log.info("Goodbye!");
+            LOGGER.info("Goodbye!");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

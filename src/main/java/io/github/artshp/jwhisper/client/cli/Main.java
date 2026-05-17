@@ -6,7 +6,14 @@ import lombok.extern.slf4j.Slf4j;
  * Client app entry point.
  */
 @Slf4j
-class Main {
+final class Main {
+
+    /**
+     * Constructor to prohibit instantiating.
+     */
+    private Main() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     /**
      * Client app entry point.
@@ -16,7 +23,7 @@ class Main {
             ClientApp app = new ClientApp();
             app.start();
         } catch (Exception e) {
-            log.error("Unexpected error:", e);
+            LOGGER.error("Unexpected error:", e);
         }
     }
 }
