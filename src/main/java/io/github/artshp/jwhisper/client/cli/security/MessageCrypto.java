@@ -14,10 +14,24 @@ import java.security.*;
  */
 public final class MessageCrypto {
 
+    /**
+     * Algorithm used for end-to-end messages encryption.
+     */
     private static final String ENCRYPTION_ALGORITHM = "AES";
+
+    /**
+     * Length of nonce used for end-to-end encryption.
+     */
     private static final int NONCE_LENGTH = 12;
+
+    /**
+     * Length og GCM tag used for end-to-end encryption.
+     */
     private static final int GCM_TAG_LENGTH = 128;
 
+    /**
+     * Secure random provider.
+     */
     private static final SecureRandom RANDOM = new SecureRandom();
 
     /**
@@ -130,6 +144,9 @@ public final class MessageCrypto {
     ) {
     }
 
+    /**
+     * Constructor to prohibit instantiating.
+     */
     private MessageCrypto() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }

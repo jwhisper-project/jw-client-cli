@@ -178,6 +178,9 @@ public final class IdentityManager {
         );
     }
 
+    /**
+     * Constructor to prohibit instantiating.
+     */
     private IdentityManager() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }

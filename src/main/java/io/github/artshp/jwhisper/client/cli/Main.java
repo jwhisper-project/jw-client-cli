@@ -8,6 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class Main {
 
+    /**
+     * Constructor to prohibit instantiating.
+     */
     private Main() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
