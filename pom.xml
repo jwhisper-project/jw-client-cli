@@ -32,6 +32,7 @@
         <lombok.version>1.18.44</lombok.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <jackson.version>3.1.2</jackson.version>
+        <junit.version>6.0.3</junit.version>
     </properties>
 
     <build>
@@ -186,6 +187,14 @@
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
