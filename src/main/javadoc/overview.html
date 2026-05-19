@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JWhisper Client CLI Overview</title>
+</head>
+<body>
+<h1>JWhisper Client CLI Overview</h1>
+
+<p>
+    The <code>jw-client-cli</code> artifact is the terminal-facing interface for JWhisper end-users.
+    It manages the full lifecycle of identity profiles, handles background network I/O, and executes
+    the cryptographic client-side operations necessary to maintain true End-to-End Encryption (E2EE).
+</p>
+
+<h2>Key Structural Pillars</h2>
+<ul>
+    <li><strong>io.github.artshp.jwhisper.client.cli.users:</strong>
+        Contains information about other users to be able to encrypt messages for them
+        and verify message from them.
+    </li>
+    <li><strong>io.github.artshp.jwhisper.client.cli.network:</strong>
+        Maintains full-duplex TCP/IP loops utilizing an unblocking dual-track network state configuration
+        (segregating asynchronous incoming packet listeners from interactive typing loops).
+    </li>
+    <li><strong>io.github.artshp.jwhisper.client.cli.security:</strong>
+        Powers the localized Hybrid Cryptosystem. Handles local secure key storage inside PKCS12 structures,
+        signs transmissions with <code>Ed25519</code> identities and encrypts them with <code>X25519</code> per-message keys.
+    </li>
+</ul>
+
+</body>
+</html>

@@ -17,14 +17,9 @@ import java.nio.file.Path;
 public class ConfigManager {
 
     /**
-     * Configuration file name.
+     * Default configuration file path.
      */
-    private static final String CONFIG_FILE = "config.json";
-
-    /**
-     * Configuration file path.
-     */
-    private static final Path CONFIG_FILE_PATH = Path.of(CONFIG_FILE);
+    private static final Path DEFAULT_CONFIG_FILE_PATH = Path.of("config.json");
 
     /**
      * Object mapper responsible for persisting/loading configuration.
@@ -34,9 +29,23 @@ public class ConfigManager {
             .build();
 
     /**
-     * Create a new instance of config manager.
+     * Configuration file path.
+     */
+    private final Path configPath;
+
+    /**
+     * Create a new instance of config manager with default config file path.
      */
     public ConfigManager() {
+        this(DEFAULT_CONFIG_FILE_PATH);
+    }
+
+    /**
+     * Create a new instance of config manager.
+     * @param configPath config file path
+     */
+    public ConfigManager(Path configPath) {
+        this.configPath = configPath;
     }
 
     /**
@@ -45,12 +54,12 @@ public class ConfigManager {
      * @throws ConfigFileException if failed to save config file
      */
     public void saveConfig(ClientConfig config) throws ConfigFileException {
-        LOGGER.debug("Trying to save config to {}", CONFIG_FILE_PATH);
+        LOGGER.debug("Trying to save config to {}", configPath);
         try {
-            MAPPER.writeValue(CONFIG_FILE_PATH, config);
-            LOGGER.info("Successfully saved config to {}", CONFIG_FILE_PATH);
+            MAPPER.writeValue(configPath, config);
+            LOGGER.info("Successfully saved config to {}", configPath);
         } catch (JacksonException e) {
-            LOGGER.error("Failed to save config to {}", CONFIG_FILE_PATH, e);
+            LOGGER.error("Failed to save config to {}", configPath, e);
             throw new ConfigFileException("Failed to save config file", e);
         }
     }
@@ -61,14 +70,14 @@ public class ConfigManager {
      * @throws ConfigFileException if failed to load config file
      */
     public ClientConfig loadConfig() throws ConfigFileException {
-        LOGGER.debug("Trying to load config from {}", CONFIG_FILE_PATH);
+        LOGGER.debug("Trying to load config from {}", configPath);
         try {
-            ClientConfig config = MAPPER.readValue(CONFIG_FILE_PATH, ClientConfig.class);
-            LOGGER.info("Successfully loaded config from {}", CONFIG_FILE_PATH);
+            ClientConfig config = MAPPER.readValue(configPath, ClientConfig.class);
+            LOGGER.info("Successfully loaded config from {}", configPath);
 
             return config;
         } catch (JacksonException e) {
-            LOGGER.error("Failed to load config from {}", CONFIG_FILE_PATH, e);
+            LOGGER.error("Failed to load config from {}", configPath, e);
             throw new ConfigFileException("Failed to load config file", e);
         }
     }
@@ -78,6 +87,6 @@ public class ConfigManager {
      * @return {@code true} if config file is present, otherwise {@code false}
      */
     public boolean isConfigPresent() {
-        return Files.exists(CONFIG_FILE_PATH);
+        return Files.exists(configPath);
     }
 }
