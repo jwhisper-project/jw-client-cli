@@ -120,6 +120,7 @@
                     <show>private</show>
                     <detectJavaApiLink>true</detectJavaApiLink>
                     <release>${java.version}</release>
+                    <overview>${project.basedir}/src/main/javadoc/overview.html</overview>
                     <links>
                         <link>https://docs.oracle.com/en/java/javase/${java.version}/docs/api/</link>
                         <link>https://www.slf4j.org/apidocs-${slf4j.version}/</link>
