@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyManagementException;
@@ -80,6 +81,24 @@ public class ServerTrustManager {
      * @return generated SSL socket factory
      */
     public SSLSocketFactory getSSLSocketFactory() {
+        return getSSLContext().getSocketFactory();
+    }
+
+    /**
+     * Generate HTTP client trusting only to the white list of certificates/servers.
+     * @return generated HTTP client
+     */
+    public HttpClient getHttpClient() {
+        return HttpClient.newBuilder()
+                .sslContext(getSSLContext())
+                .build();
+    }
+
+    /**
+     * Generate SSL context trusting only to the white list of certificates/servers.
+     * @return generated SSL context
+     */
+    private SSLContext getSSLContext() {
         try {
             TrustManagerFactory tmf = SecurityUtils.newTrustManagerFactory();
             SSLContext ctx = SSLContext.getInstance(SecurityUtils.SSL_PROTOCOL);
@@ -87,7 +106,7 @@ public class ServerTrustManager {
             tmf.init(trustStore);
             ctx.init(null, tmf.getTrustManagers(), null);
 
-            return ctx.getSocketFactory();
+            return ctx;
         } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException e) {
             LOGGER.error("Failed to initialize SSL context", e);
             throw new RuntimeException("Failed to initialize SSL context", e);

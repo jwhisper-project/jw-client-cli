@@ -9,6 +9,7 @@ module jwhisper.client.cli {
     requires tools.jackson.core;
     requires tools.jackson.databind;
     requires org.slf4j;
+    requires java.net.http;
 
     requires jwhisper.common;
 }
