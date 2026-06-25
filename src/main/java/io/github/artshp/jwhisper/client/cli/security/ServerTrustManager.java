@@ -5,6 +5,7 @@ import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.net.http.HttpClient;
@@ -91,7 +92,25 @@ public class ServerTrustManager {
     public HttpClient getHttpClient() {
         return HttpClient.newBuilder()
                 .sslContext(getSSLContext())
+                .sslParameters(getSSLParameters())
                 .build();
+    }
+
+    /**
+     * Generate SSL parameters using only modern TLS protocol with the best encryption settings.
+     * @return generated SSL parameters
+     */
+    private SSLParameters getSSLParameters() {
+        SSLParameters sslParameters = new SSLParameters();
+
+        sslParameters.setProtocols(new String[] {"TLSv1.3"});
+        sslParameters.setCipherSuites(new String[] {
+                "TLS_AES_256_GCM_SHA384",
+                "TLS_CHACHA20_POLY1305_SHA256"
+        });
+        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+
+        return sslParameters;
     }
 
     /**
