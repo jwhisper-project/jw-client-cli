@@ -93,8 +93,8 @@ public class NetworkClient implements AutoCloseable {
         );
         RegisterRequest request = new RegisterRequest(
                 username,
-                keys.signing().getPublic().getEncoded(),
-                keys.encryption().getPublic().getEncoded(),
+                PublicKeyUtils.toRawBytes(keys.signing().getPublic()),
+                PublicKeyUtils.toRawBytes(keys.encryption().getPublic()),
                 signature
         );
 
