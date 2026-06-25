@@ -4,10 +4,7 @@ import io.github.artshp.jwhisper.client.cli.security.ServerTrustManager;
 import io.github.artshp.jwhisper.client.cli.users.UserKeys;
 import io.github.artshp.jwhisper.common.crypto.PublicKeyUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
-import io.github.artshp.jwhisper.common.protocol.Identifiable;
-import io.github.artshp.jwhisper.common.protocol.RegisterRequest;
-import io.github.artshp.jwhisper.common.protocol.StatusResponse;
-import io.github.artshp.jwhisper.common.protocol.WhisperMessage;
+import io.github.artshp.jwhisper.common.protocol.*;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
@@ -16,6 +13,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
+import java.security.PrivateKey;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -128,6 +126,33 @@ public class NetworkClient implements AutoCloseable {
             }
         } else {
             LOGGER.error("Unexpected response {}. Failed to register user {}", response, username);
+        }
+
+        return false;
+    }
+
+    public boolean login(String username, PrivateKey privateSigningKey) throws IOException {
+        byte[] signature = SigningUtils.sign(
+                privateSigningKey,
+                username.getBytes(StandardCharsets.UTF_8)
+        );
+        LoginRequest request = new LoginRequest(
+                username,
+                signature
+        );
+
+        CompletableFuture<WhisperMessage> cf = send(request);
+        WhisperMessage response = cf.join();
+
+        if (response instanceof StatusResponse statusResponse) {
+            if (statusResponse.success()) {
+                LOGGER.info("Successfully logged in user {}", username);
+                return true;
+            } else {
+                LOGGER.error("Failed to log in user {}", username);
+            }
+        } else {
+            LOGGER.error("Unexpected response {}. Failed to log in user {}", response, username);
         }
 
         return false;
