@@ -60,6 +60,11 @@ public class NetworkClient implements AutoCloseable {
     private final ServerTrustManager trustManager;
 
     /**
+     * User keys.
+     */
+    private final UserKeys userKeys;
+
+    /**
      * Relay's hostname.
      */
     private final String host;
@@ -77,11 +82,13 @@ public class NetworkClient implements AutoCloseable {
     /**
      * Create a new network client.
      * @param trustManager server trust manager
+     * @param userKeys user keys
      * @param host relay's hostname
      * @param port relay's port
      */
-    public NetworkClient(ServerTrustManager trustManager, String host, int port) {
+    public NetworkClient(ServerTrustManager trustManager, UserKeys userKeys, String host, int port) {
         this.trustManager = trustManager;
+        this.userKeys = userKeys;
         this.host = host;
         this.port = port;
     }
@@ -98,7 +105,7 @@ public class NetworkClient implements AutoCloseable {
             URI uri = new URI(WEBSOCKET_PROTOCOL, null, host, port, WEBSOCKET_ENDPOINT, null, null);
 
             return client.newWebSocketBuilder()
-                    .buildAsync(uri, new WebSocketListener(pendingRequests))
+                    .buildAsync(uri, new WebSocketListener(userRegistry, pendingRequests, userKeys))
                     .thenAccept(ws -> webSocket = ws);
 
         } catch (Exception e) {
