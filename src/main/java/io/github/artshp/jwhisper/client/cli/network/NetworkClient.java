@@ -2,6 +2,7 @@ package io.github.artshp.jwhisper.client.cli.network;
 
 import io.github.artshp.jwhisper.client.cli.security.ServerTrustManager;
 import io.github.artshp.jwhisper.client.cli.users.UserKeys;
+import io.github.artshp.jwhisper.client.cli.users.UserRegistry;
 import io.github.artshp.jwhisper.common.crypto.PublicKeyUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
 import io.github.artshp.jwhisper.common.protocol.*;
@@ -14,6 +15,9 @@ import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -188,6 +192,51 @@ public class NetworkClient implements AutoCloseable {
         }
 
         return false;
+    }
+
+    /**
+     * Request public keys of the user.
+     * @param targetUsername target user's username
+     * @return user public keys
+     * @throws IOException if failed to send request or failed to receive response.
+     */
+    public Optional<UserRegistry.UserPublicKeys> requestUserPublicKeys(String targetUsername) throws IOException {
+        UserPublicKeyRequest request = new UserPublicKeyRequest(targetUsername);
+
+        CompletableFuture<WhisperMessage> cf = send(request);
+        WhisperMessage response = cf.join();
+
+        if (response instanceof UserPublicKeyResponse publicKeyResponse) {
+            if (publicKeyResponse.found()) {
+                LOGGER.info("Successfully found public keys of user {}", targetUsername);
+                return parseUserPublicKeysResponse(publicKeyResponse);
+            } else {
+                LOGGER.error("Failed to find public keys of user {}", targetUsername);
+            }
+        } else {
+            LOGGER.error("Unexpected response {}. Failed to find public keys of user {}", response, targetUsername);
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Parse user public keys from corresponding response from server.
+     * @param response response from server
+     * @return parsed user public keys, otherwise {@link Optional#empty()} if failed
+     */
+    private Optional<UserRegistry.UserPublicKeys> parseUserPublicKeysResponse(UserPublicKeyResponse response) {
+        try {
+            PublicKey signingPublicKey = PublicKeyUtils.newSigningPublicKey(response.publicSigningKey());
+            PublicKey encryptionPublicKey = PublicKeyUtils.newEncryptionPublicKey(response.publicEncryptionKey());
+
+            return Optional.of(
+                    new UserRegistry.UserPublicKeys(signingPublicKey, encryptionPublicKey)
+            );
+        } catch (InvalidKeySpecException e) {
+            LOGGER.error("Failed to recreate user public keys from response", e);
+            return Optional.empty();
+        }
     }
 
     /**
