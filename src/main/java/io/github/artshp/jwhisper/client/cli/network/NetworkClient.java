@@ -197,7 +197,7 @@ public class NetworkClient implements AutoCloseable {
     /**
      * Request public keys of the user.
      * @param targetUsername target user's username
-     * @return user public keys
+     * @return user public keys if found, otherwise {@link Optional#empty()}
      * @throws IOException if failed to send request or failed to receive response.
      */
     public Optional<UserRegistry.UserPublicKeys> requestUserPublicKeys(String targetUsername) throws IOException {
