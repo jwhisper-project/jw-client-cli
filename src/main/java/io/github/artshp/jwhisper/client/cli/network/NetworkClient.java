@@ -2,18 +2,21 @@ package io.github.artshp.jwhisper.client.cli.network;
 
 import io.github.artshp.jwhisper.client.cli.security.ServerTrustManager;
 import io.github.artshp.jwhisper.client.cli.users.UserKeys;
-import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
+import io.github.artshp.jwhisper.common.crypto.PublicKeyUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
-import io.github.artshp.jwhisper.common.protocol.MessageTransport;
+import io.github.artshp.jwhisper.common.protocol.Identifiable;
 import io.github.artshp.jwhisper.common.protocol.RegisterRequest;
 import io.github.artshp.jwhisper.common.protocol.StatusResponse;
 import io.github.artshp.jwhisper.common.protocol.WhisperMessage;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
 
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Network client.
@@ -22,9 +25,24 @@ import java.nio.charset.StandardCharsets;
 public class NetworkClient implements AutoCloseable {
 
     /**
-     * Service responsible for network communication.
+     * Web Socket Secure protocol (scheme).
      */
-    private final MessageTransport transport = new MessageTransport();
+    private static final String WEBSOCKET_PROTOCOL = "wss";
+
+    /**
+     * Endpoint responsible for JWhisper messages.
+     */
+    private static final String WEBSOCKET_ENDPOINT = "/whisper";
+
+    /**
+     * Object mapper for JSON.
+     */
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    /**
+     * Service for pending requests.
+     */
+    private final PendingRequestsService pendingRequests = new PendingRequestsService();
 
     /**
      * Trust manager needed to trust only to the white list of servers.
@@ -42,9 +60,9 @@ public class NetworkClient implements AutoCloseable {
     private final int port;
 
     /**
-     * Client socket.
+     * Client web socket.
      */
-    private SSLSocket socket;
+    private WebSocket webSocket;
 
     /**
      * Create a new network client.
@@ -60,22 +78,22 @@ public class NetworkClient implements AutoCloseable {
 
     /**
      * Connect to relay server.
+     * @return completed future if connected successfully, otherwise one completed exceptionally
      */
-    public void connect() {
+    public CompletableFuture<Void> connect() {
         LOGGER.info("Connecting to relay at {}:{}...", host, port);
 
         try {
-            SSLSocketFactory factory = trustManager.getSSLSocketFactory(); /* (SSLSocketFactory) SSLSocketFactory.getDefault(); */
+            HttpClient client = trustManager.getHttpClient();
+            URI uri = new URI(WEBSOCKET_PROTOCOL, null, host, port, WEBSOCKET_ENDPOINT, null, null);
 
-            socket = (SSLSocket) factory.createSocket(host, port);
+            return client.newWebSocketBuilder()
+                    .buildAsync(uri, new WebSocketListener(pendingRequests))
+                    .thenAccept(ws -> webSocket = ws);
 
-            socket.setEnabledProtocols(new String[]{SecurityUtils.SSL_PROTOCOL});
-            socket.startHandshake();
-
-            LOGGER.debug("TLS connection established");
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.error("Error connecting to relay", e);
-            throw new RuntimeException(e);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -98,8 +116,8 @@ public class NetworkClient implements AutoCloseable {
                 signature
         );
 
-        send(request);
-        WhisperMessage response = receive();
+        CompletableFuture<WhisperMessage> cf = send(request);
+        WhisperMessage response = cf.join();
 
         if (response instanceof StatusResponse statusResponse) {
             if (statusResponse.success()) {
@@ -120,8 +138,19 @@ public class NetworkClient implements AutoCloseable {
      * @param message message to send
      * @throws IOException if failed to send message
      */
-    public void send(WhisperMessage message) throws IOException {
-        transport.sendMessage(socket.getOutputStream(), message);
+    public CompletableFuture<WhisperMessage> send(WhisperMessage message) throws IOException {
+        String data = mapper.writeValueAsString(message);
+
+        CompletableFuture<WhisperMessage> future = null;
+        if (message instanceof Identifiable identifiable) {
+            String id = identifiable.getId();
+            future = new CompletableFuture<>();
+            pendingRequests.put(id, future);
+        }
+
+        webSocket.sendText(data, true);
+
+        return future;
     }
 
     /**
@@ -129,19 +158,21 @@ public class NetworkClient implements AutoCloseable {
      * @return received message
      * @throws IOException if failed to receive message
      */
+    @Deprecated
     public WhisperMessage receive() throws IOException {
-        return transport.receiveMessage(socket.getInputStream(), WhisperMessage.class);
+        // return transport.receiveMessage(socket.getInputStream(), WhisperMessage.class);
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
      * Stop client, close connection to server.
-     * @throws IOException if an I/O error occurs when closing the socket
+     * @throws IOException if an I/O error occurs when closing the web socket
      */
     @Override
     public void close() throws IOException {
         LOGGER.info("Closing connection to relay");
-        if (socket != null) {
-            socket.close();
+        if (webSocket != null) {
+            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Closing connection").join();
         }
     }
 }
