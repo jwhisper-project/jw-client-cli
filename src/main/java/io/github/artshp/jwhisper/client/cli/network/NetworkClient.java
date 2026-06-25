@@ -131,6 +131,13 @@ public class NetworkClient implements AutoCloseable {
         return false;
     }
 
+    /**
+     * Log in user on the server.
+     * @param username user's username
+     * @param privateSigningKey private signing key used for generating ownership signature
+     * @return {@code true} if user was logged-in successfully, otherwise {@code false}
+     * @throws IOException if failed to send request or failed to receive response.
+     */
     public boolean login(String username, PrivateKey privateSigningKey) throws IOException {
         byte[] signature = SigningUtils.sign(
                 privateSigningKey,
@@ -158,6 +165,11 @@ public class NetworkClient implements AutoCloseable {
         return false;
     }
 
+    /**
+     * Log out user on the server.
+     * @return {@code true} if user was logged-out successfully, otherwise {@code false}
+     * @throws IOException if failed to send request or failed to receive response.
+     */
     public boolean logout() throws IOException {
         LogoutRequest request = new LogoutRequest();
 
