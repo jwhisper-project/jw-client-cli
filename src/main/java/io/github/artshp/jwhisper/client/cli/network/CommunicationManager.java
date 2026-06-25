@@ -23,6 +23,7 @@ import java.util.concurrent.*;
  * Service responsible for double-ended network communication with relay.
  */
 @Slf4j
+@Deprecated
 public class CommunicationManager {
 
     /**
