@@ -5,8 +5,10 @@ import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
+import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyManagementException;
@@ -80,6 +82,42 @@ public class ServerTrustManager {
      * @return generated SSL socket factory
      */
     public SSLSocketFactory getSSLSocketFactory() {
+        return getSSLContext().getSocketFactory();
+    }
+
+    /**
+     * Generate HTTP client trusting only to the white list of certificates/servers.
+     * @return generated HTTP client
+     */
+    public HttpClient getHttpClient() {
+        return HttpClient.newBuilder()
+                .sslContext(getSSLContext())
+                .sslParameters(getSSLParameters())
+                .build();
+    }
+
+    /**
+     * Generate SSL parameters using only modern TLS protocol with the best encryption settings.
+     * @return generated SSL parameters
+     */
+    private SSLParameters getSSLParameters() {
+        SSLParameters sslParameters = new SSLParameters();
+
+        sslParameters.setProtocols(new String[] {"TLSv1.3"});
+        sslParameters.setCipherSuites(new String[] {
+                "TLS_AES_256_GCM_SHA384",
+                "TLS_CHACHA20_POLY1305_SHA256"
+        });
+        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+
+        return sslParameters;
+    }
+
+    /**
+     * Generate SSL context trusting only to the white list of certificates/servers.
+     * @return generated SSL context
+     */
+    private SSLContext getSSLContext() {
         try {
             TrustManagerFactory tmf = SecurityUtils.newTrustManagerFactory();
             SSLContext ctx = SSLContext.getInstance(SecurityUtils.SSL_PROTOCOL);
@@ -87,7 +125,7 @@ public class ServerTrustManager {
             tmf.init(trustStore);
             ctx.init(null, tmf.getTrustManagers(), null);
 
-            return ctx.getSocketFactory();
+            return ctx;
         } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException e) {
             LOGGER.error("Failed to initialize SSL context", e);
             throw new RuntimeException("Failed to initialize SSL context", e);

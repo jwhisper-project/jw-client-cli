@@ -3,7 +3,7 @@ package io.github.artshp.jwhisper.client.cli.network;
 import io.github.artshp.jwhisper.client.cli.security.MessageCrypto;
 import io.github.artshp.jwhisper.client.cli.users.UserKeys;
 import io.github.artshp.jwhisper.client.cli.users.UserRegistry;
-import io.github.artshp.jwhisper.common.crypto.SecurityUtils;
+import io.github.artshp.jwhisper.common.crypto.PublicKeyUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
 import io.github.artshp.jwhisper.common.exception.NetworkServiceException;
 import io.github.artshp.jwhisper.common.io.ConsoleUtils;
@@ -23,6 +23,7 @@ import java.util.concurrent.*;
  * Service responsible for double-ended network communication with relay.
  */
 @Slf4j
+@Deprecated
 public class CommunicationManager {
 
     /**
@@ -142,7 +143,7 @@ public class CommunicationManager {
      * @throws IOException if failed to send request
      */
     private void unregister() throws IOException {
-        UnregisterRequest request = new UnregisterRequest();
+        LogoutRequest request = new LogoutRequest();
         client.send(request);
 
         StatusResponse response;
@@ -171,8 +172,8 @@ public class CommunicationManager {
 
         if (response.found()) {
             try {
-                PublicKey signing = SecurityUtils.newSigningPublicKey(response.publicSigningKey());
-                PublicKey encryption = SecurityUtils.newEncryptionPublicKey(response.publicEncryptionKey());
+                PublicKey signing = PublicKeyUtils.newSigningPublicKey(response.publicSigningKey());
+                PublicKey encryption = PublicKeyUtils.newEncryptionPublicKey(response.publicEncryptionKey());
                 userRegistry.addUserPublicKeys(targetUsername, signing, encryption);
                 LOGGER.info("Successfully obtained public keys of user {}", targetUsername);
             } catch (InvalidKeySpecException e) {
