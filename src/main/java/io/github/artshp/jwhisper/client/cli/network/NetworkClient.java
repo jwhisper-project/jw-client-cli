@@ -158,6 +158,26 @@ public class NetworkClient implements AutoCloseable {
         return false;
     }
 
+    public boolean logout() throws IOException {
+        LogoutRequest request = new LogoutRequest();
+
+        CompletableFuture<WhisperMessage> cf = send(request);
+        WhisperMessage response = cf.join();
+
+        if (response instanceof StatusResponse statusResponse) {
+            if (statusResponse.success()) {
+                LOGGER.info("Successfully logged out user");
+                return true;
+            } else {
+                LOGGER.error("Failed to log out user");
+            }
+        } else {
+            LOGGER.error("Unexpected response {}. Failed to log out user", response);
+        }
+
+        return false;
+    }
+
     /**
      * Send message to server.
      * @param message message to send
