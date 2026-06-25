@@ -1,10 +1,12 @@
 package io.github.artshp.jwhisper.client.cli.network;
 
+import io.github.artshp.jwhisper.client.cli.security.MessageCrypto;
 import io.github.artshp.jwhisper.client.cli.security.ServerTrustManager;
 import io.github.artshp.jwhisper.client.cli.users.UserKeys;
 import io.github.artshp.jwhisper.client.cli.users.UserRegistry;
 import io.github.artshp.jwhisper.common.crypto.PublicKeyUtils;
 import io.github.artshp.jwhisper.common.crypto.SigningUtils;
+import io.github.artshp.jwhisper.common.exception.NetworkServiceException;
 import io.github.artshp.jwhisper.common.protocol.*;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
@@ -14,6 +16,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
@@ -45,6 +48,11 @@ public class NetworkClient implements AutoCloseable {
      * Service for pending requests.
      */
     private final PendingRequestsService pendingRequests = new PendingRequestsService();
+
+    /**
+     * Service for caching information about other users.
+     */
+    private final UserRegistry userRegistry = new UserRegistry();
 
     /**
      * Trust manager needed to trust only to the white list of servers.
@@ -218,6 +226,65 @@ public class NetworkClient implements AutoCloseable {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * Send direct message to user.
+     * @param username user username
+     * @param privateSigningKey private signing key of user
+     * @param targetUsername target user username
+     * @param plainText message to send
+     * @throws NetworkServiceException if failed to encrypt message for user
+     * @throws IOException if failed to send message
+     */
+    public boolean sendDirectMessage(String username, PrivateKey privateSigningKey, String targetUsername, String plainText) throws NetworkServiceException, IOException {
+        UserRegistry.UserPublicKeys recipientKeys = userRegistry.getKeys(targetUsername);
+        if (recipientKeys == null) {
+            LOGGER.warn("User {} is unknown, i.e. no public keys found", targetUsername);
+            LOGGER.info("Requesting public keys of user {}", targetUsername);
+
+            Optional<UserRegistry.UserPublicKeys> optionalPublicKeys = requestUserPublicKeys(targetUsername);
+            if (optionalPublicKeys.isPresent()) {
+                UserRegistry.UserPublicKeys publicKeys = optionalPublicKeys.get();
+                LOGGER.info("Successfully obtained public keys of user {}", targetUsername);
+
+                // TODO: ask user if we trust this user (i.e. show fingerprints)
+                userRegistry.addUserPublicKeys(targetUsername, publicKeys.signing(), publicKeys.encryption());
+                recipientKeys = publicKeys;
+            } else {
+                LOGGER.error("Failed to get public keys of user {}", targetUsername);
+
+                userRegistry.markUnavailable(targetUsername);
+                return false;
+            }
+        }
+
+        byte[] data = plainText.getBytes(StandardCharsets.UTF_8);
+
+        MessageCrypto.Sealed sealed;
+        try {
+            sealed = MessageCrypto.encrypt(recipientKeys.encryption(), data);
+        } catch (GeneralSecurityException e) {
+            throw new NetworkServiceException("Failed to encrypt message for user " + targetUsername, e);
+        }
+
+        byte[] signedPayload = MessageCrypto.signedPayload(sealed);
+        byte[] signature = SigningUtils.sign(privateSigningKey, signedPayload);
+
+        EncryptedMessage message = new EncryptedMessage(
+                username,
+                targetUsername,
+                sealed.ephemeralPublicKey(),
+                sealed.nonce(),
+                sealed.cipherText(),
+                signature,
+                System.currentTimeMillis()
+        );
+
+        send(message);
+        LOGGER.info("Message sent to {}", targetUsername);
+
+        return true;
     }
 
     /**
